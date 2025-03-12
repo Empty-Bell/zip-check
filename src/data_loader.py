@@ -1,12 +1,13 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Optional, Dict, Tuple
+from config import DATA_PATHS
 
 @st.cache_data
 def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[str]]:
     """평형 데이터 로딩 및 필터링"""
     try:
-        df = pd.read_csv("pyeong_data.csv", encoding='utf-8-sig')
+        df = pd.read_csv(DATA_PATHS["PYEONG"], encoding='utf-8-sig')
         if complex_ids:
             df = df[df['complexNo'].isin(complex_ids)]
         pyeong_dict = {}
@@ -23,7 +24,7 @@ def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[
 def load_region_mapping() -> pd.DataFrame:
     """법정동 코드 데이터 로딩"""
     try:
-        return pd.read_csv("cortarNo.csv", encoding="utf-8-sig")
+        return pd.read_csv(DATA_PATHS["CORTAR"], encoding="utf-8-sig")
     except Exception as e:
         st.error(f"법정동 데이터 로드 중 오류: {e}")
         return pd.DataFrame()

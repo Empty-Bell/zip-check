@@ -2,13 +2,14 @@ import pandas as pd
 import numpy as np
 import re
 
-# ========================
-# 1. 파일 경로 설정
-# ========================
-sell_data_path = r"C:\Users\jongb\OneDrive\문서\우리문서\파이썬\python_crawling\08. 네이버부동산 매물 크롤링\sell_data.csv"
-real_price_path = r"C:\Users\jongb\OneDrive\문서\우리문서\파이썬\python_crawling\08. 네이버부동산 매물 크롤링\price_data.csv"
-complex_data_path = r"C:\Users\jongb\OneDrive\문서\우리문서\파이썬\python_crawling\08. 네이버부동산 매물 크롤링\complex_data.csv"
-output_path = r"C:\Users\jongb\OneDrive\문서\우리문서\파이썬\python_crawling\08. 네이버부동산 매물 크롤링\result.csv"
+# 하드코딩된 경로를 config.py의 DATA_PATHS 사용하도록 수정
+from config import DATA_PATHS
+
+# 파일 경로 설정 부분 수정
+sell_data_path = DATA_PATHS["COMPLEX"]
+real_price_path = DATA_PATHS["REAL_PRICE"]
+complex_data_path = DATA_PATHS["COMPLEX"]
+output_path = DATA_PATHS["RESULT"]
 
 def main(complex_ids=None):
     """선택된 아파트 단지들의 매물과 실거래가 데이터를 병합하여 통계 계산"""
