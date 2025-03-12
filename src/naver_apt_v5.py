@@ -1,9 +1,15 @@
+import os
+from dotenv import load_dotenv
 from datetime import datetime
 import requests
 import csv
 import copy
 import math
 import re
+from src.config import DATA_PATHS, DATA_DIR
+
+# .env 파일 로드
+load_dotenv()
 
 # -------------------------------
 # 모든 산출물의 업데이트 날짜 (시간까지)
@@ -14,37 +20,88 @@ updated_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 # 기본 설정 (쿠키, 헤더 등)
 # -------------------------------
 BASE_COOKIES = {
-    'NNB': 'C7GYEM4VLE3WK',
-    'ASID': '3b0d2b430000018b621828fa00000065',
+    'NNB': os.getenv('NNB'),
+    'ASID': os.getenv('ASID'),
+    'NAC': os.getenv('NAC'),
     'landHomeFlashUseYn': 'Y',
-    '_fwb': '119q3FQCJEzWfKGKU2BUQo7.1702389509680',
-    '_ga_0ZGH3YC3W6': 'GS1.2.1707832253.1.1.1707832259.0.0.0',
-    '_ga_8P4PY65YZ2': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-    '_ga_GN4BHVX9DS': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
     '_ga': 'GA1.1.737295237.1698157835',
-    '_ga_451MFZ9CFM': 'GS1.1.1717924411.2.0.1717924411.0.0.0',
-    'wcs_bt': '4f99b5681ce60:1737461795',
-    'NAC': 'cerqCgAMWF7sA',
-    'nhn.realestate.article.rlet_type_cd': 'A01',
-    'nhn.realestate.article.trade_type_cd': '""',
-    'realestate.beta.lastclick.cortar': '4111700000',
-    'REALESTATE': 'Tue%20Jan%2021%202025%2022%3A01%3A14%20GMT%2B0900%20(Korean%20Standard%20Time)',
-    'BUC': 'dDfX599qmVyPQb9qdSH6U0W02G-VE54pwdomhTkT2mA=',
 }
 
 BASE_HEADERS = {
     'accept': '*/*',
     'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
-    'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IlJFQUxFU1RBVEUiLCJpYXQiOjE3Mzc0NjQ0NzQsImV4cCI6MTczNzQ3NTI3NH0.yhaNY62nph5MH_8P5Zg84aV1tR2xabBc-iGoVnuAb_Y',
-    'priority': 'u=1, i',
-    'referer': 'https://new.land.naver.com/complexes/',
-    'sec-ch-ua': '"Not A(Brand";v="8", "Chromium";v="132", "Google Chrome";v="132"',
+    'authorization': os.getenv('AUTHORIZATION'),
+    'user-agent': os.getenv('USER_AGENT'),
+    'sec-ch-ua': '"Not A(Brand";v="8", "Chromium";v="132"',
     'sec-ch-ua-mobile': '?0',
     'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36',
+}
+
+# -------------------------------
+# Sell 데이터 요청용 설정
+# -------------------------------
+SELL_COOKIES = {
+    'NNB': os.getenv('NNB'),
+    'ASID': os.getenv('ASID'),
+    'NAC': os.getenv('NAC'),
+    'landHomeFlashUseYn': 'Y',
+    'REALESTATE': os.getenv('SELL_REALESTATE'),
+    '_fwb': os.getenv('SELL_FWB'),
+    'SHOW_FIN_BADGE': os.getenv('SELL_SHOW_FIN_BADGE'),
+    '_ga_0ZGH3YC3W6': os.getenv('SELL_GA_0ZGH3YC3W6'),
+    '_ga': os.getenv('SELL_GA'),
+}
+
+SELL_HEADERS = {
+    'accept': '*/*',
+    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
+    'authorization': os.getenv('SELL_AUTHORIZATION'),
+    'user-agent': os.getenv('USER_AGENT'),
+    'referer': os.getenv('SELL_REFERER'),
+}
+
+# -------------------------------
+# 학교 정보 요청용 설정
+# -------------------------------
+SCHOOL_COOKIES = {
+    'NNB': os.getenv('NNB'),
+    'ASID': os.getenv('ASID'),
+    'NAC': os.getenv('NAC'),
+    'landHomeFlashUseYn': 'Y',
+    'page_uid': os.getenv('SCHOOL_PAGE_UID'),
+    'REALESTATE': os.getenv('SCHOOL_REALESTATE'),
+    'SRT30': os.getenv('SCHOOL_SRT30'),
+    'SRT5': os.getenv('SCHOOL_SRT5'),
+    'BUC': os.getenv('SCHOOL_BUC'),
+}
+
+SCHOOL_HEADERS = {
+    'accept': '*/*',
+    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
+    'authorization': os.getenv('SCHOOL_AUTHORIZATION'),
+    'user-agent': os.getenv('USER_AGENT'),
+}
+
+# -------------------------------
+# 동 정보 요청용 설정
+# -------------------------------
+DONG_COOKIES = {
+    'NNB': os.getenv('NNB'),
+    'ASID': os.getenv('ASID'),
+    'NAC': os.getenv('NAC'),
+    'landHomeFlashUseYn': 'Y',
+    'page_uid': os.getenv('DONG_PAGE_UID'),
+    'REALESTATE': os.getenv('DONG_REALESTATE'),
+    'SRT30': os.getenv('DONG_SRT30'),
+    'SRT5': os.getenv('DONG_SRT5'),
+    'BUC': os.getenv('DONG_BUC'),
+}
+
+DONG_HEADERS = {
+    'accept': '*/*',
+    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
+    'authorization': os.getenv('DONG_AUTHORIZATION'),
+    'user-agent': os.getenv('USER_AGENT'),
 }
 
 COMMON_PARAMS = {
@@ -52,68 +109,6 @@ COMMON_PARAMS = {
     'year': '5',
     'priceChartChange': 'false',
     'type': 'chart',
-}
-
-# -------------------------------
-# Sell 데이터 요청용 설정
-# -------------------------------
-SELL_COOKIES = {
-    'NNB': 'C7GYEM4VLE3WK',
-    'ASID': '3b0d2b430000018b621828fa00000065',
-    'landHomeFlashUseYn': 'Y',
-    '_fwb': '119q3FQCJEzWfKGKU2BUQo7.1702389509680',
-    'SHOW_FIN_BADGE': 'Y',
-    '_ga_0ZGH3YC3W6': 'GS1.2.1707832253.1.1.1707832259.0.0.0',
-    '_ga': 'GA1.1.737295237.1698157835',
-    'REALESTATE': 'Mon%20Jan%2020%202025%2021%3A51%3A11%20GMT%2B0900%20(Korean%20Standard%20Time)'
-}
-
-SELL_HEADERS = {
-    'accept': '*/*',
-    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
-    'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IlJFQUxFU1RBVEUiLCJpYXQiOjE3MzczNzc0NzEsImV4cCI6MTczNzM4ODI3MX0.ymwEQC_W2JEPwcosg5Af4_r107qNVGQM5sPGxmvWncE',
-    'referer': 'https://new.land.naver.com/complexes/138183?ms=37.2890027,127.0591203,17&a=APT:PRE:ABYG:JGC&e=RETAIL',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/132.0.0.0 Safari/537.36'
-}
-
-# -------------------------------
-# 학교 정보 요청용 설정
-# -------------------------------
-SCHOOL_COOKIES = {
-    'NNB': 'C7GYEM4VLE3WK',
-    'ASID': '3b0d2b430000018b621828fa00000065',
-    'landHomeFlashUseYn': 'Y',
-    '_fwb': '119q3FQCJEzWfKGKU2BUQo7.1702389509680',
-    '_ga_0ZGH3YC3W6': 'GS1.2.1707832253.1.1.1707832259.0.0.0',
-    '_ga_8P4PY65YZ2': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-    '_ga_GN4BHVX9DS': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-    '_ga': 'GA1.1.737295237.1698157835',
-    '_ga_451MFZ9CFM': 'GS1.1.1717924411.2.0.1717924411.0.0.0',
-    'wcs_bt': '4f99b5681ce60:1733322484',
-    'NAC': 'cerqCgAMWF7sA',
-    'page_uid': 'iG+TwsqVN8VssiiuFFlssssssvs-177431',
-    'nhn.realestate.article.rlet_type_cd': 'A01',
-    'nhn.realestate.article.trade_type_cd': '""',
-    'realestate.beta.lastclick.cortar': '4111700000',
-    'REALESTATE': 'Sat%20Feb%2008%202025%2014%3A30%3A16%20GMT%2B0900%20(Korean%20Standard%20Time)',
-    'SRT30': '1738992619',
-    'SRT5': '1738992619',
-    'BUC': 'P3gRcdqOeYtK9uuwnui7TGENP3l80Fpl5VrCpzIXleY=',
-}
-
-SCHOOL_HEADERS = {
-    'accept': '*/*',
-    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8,ko;q=0.7,en-US;q=0.6',
-    'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IlJFQUxFU1RBVEUiLCJpYXQiOjE3Mzg5OTI2MTYsImV4cCI6MTczOTAwMzQxNn0.7q-DyH5lZZOlUnl5JfvUkKJO4darUEno_x6Pgwl3yak',
-    'priority': 'u=1, i',
-    'referer': 'https://new.land.naver.com/complexes/138183?ms=37.2890027,127.0591203,17&a=APT:PRE:ABYG:JGC&e=RETAIL',
-    'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"Windows"',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin',
-    'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
 }
 
 def fetch_json(url, params, cookies, headers):
@@ -133,8 +128,19 @@ def fetch_json(url, params, cookies, headers):
     return None
 
 def write_csv(filename, header, rows):
-    """CSV 파일에 데이터를 저장합니다. 마지막 열에 downloadDate를 추가합니다."""
-    with open(filename, 'w', newline='', encoding='utf-8-sig') as f:
+    from src.config import DATA_PATHS, DATA_DIR
+    
+    # 수정: filename을 문자열로 변환 후 replace()
+    file_key = str(filename).replace('.csv', '').upper()
+    if file_key in DATA_PATHS:
+        filepath = DATA_PATHS[file_key]
+    else:
+        filepath = DATA_DIR / filename
+
+    # 디렉토리가 없으면 생성
+    filepath.parent.mkdir(parents=True, exist_ok=True)
+    
+    with open(filepath, 'w', newline='', encoding='utf-8-sig') as f:
         writer = csv.writer(f)
         header_with_updated = header + ["downloadDate"]
         writer.writerow(header_with_updated)
@@ -748,8 +754,8 @@ def main_function(complex_ids=None):
             except:
                 pass
             article["downloadDate"] = updated_date
-        sell_filename = "sell_data.csv"
-        with open(sell_filename, mode='w', encoding='utf-8-sig', newline='') as file:
+        sell_filename = DATA_PATHS.get("SELL", DATA_DIR / "sell_data.csv")
+        with open(sell_filename, mode='w', newline='', encoding='utf-8-sig') as file:
             writer = csv.DictWriter(file, fieldnames=filtered_keys)
             writer.writeheader()
             for article in all_articles:
@@ -839,43 +845,6 @@ def main_function(complex_ids=None):
     # =============================================================================
     # (추가) 동 데이터 수집 및 CSV 파일 생성
     # =============================================================================
-    DONG_COOKIES = {
-        'NNB': 'C7GYEM4VLE3WK',
-        'ASID': '3b0d2b430000018b621828fa00000065',
-        'landHomeFlashUseYn': 'Y',
-        '_fwb': '119q3FQCJEzWfKGKU2BUQo7.1702389509680',
-        '_ga_0ZGH3YC3W6': 'GS1.2.1707832253.1.1.1707832259.0.0.0',
-        '_ga_8P4PY65YZ2': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-        '_ga_GN4BHVX9DS': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-        '_ga': 'GA1.1.737295237.1698157835',
-        '_ga_451MFZ9CFM': 'GS1.1.1717924411.2.0.1717924411.0.0.0',
-        'wcs_bt': '4f99b5681ce60:1733322484',
-        'NAC': 'cerqCgAMWF7sA',
-        'nhn.realestate.article.rlet_type_cd': 'A01',
-        'nhn.realestate.article.trade_type_cd': '""',
-        'realestate.beta.lastclick.cortar': '4111700000',
-        'page_uid': 'iJcrjdpzLiwssiyFQ8dssssst0h-055679',
-        'REALESTATE': 'Mon%20Feb%2017%202025%2022%3A03%3A32%20GMT%2B0900%20(Korean%20Standard%20Time)',
-        'SRT30': '1739797416',
-        'SRT5': '1739797416',
-        'BUC': 'yrHMvXunbyLK3VKXk4VzD1aMFXi6d6Wd27NOmAzGD1w=',
-    }
-
-    DONG_HEADERS = {
-        'accept': '*/*',
-        'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8,ko;q=0.7,en-US;q=0.6',
-        'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IlJFQUxFU1RBVEUiLCJpYXQiOjE3Mzk3OTc0MTIsImV4cCI6MTczOTgwODIxMn0.k6wS6F5Shcaa9lmO1J1Gsf5Ej6R1lAQU6Fi5TnAoVlE',
-        'priority': 'u=1, i',
-        'referer': 'https://new.land.naver.com/complexes/136913?ms=37.2869143,127.0640093,15&a=APT:PRE:ABYG:JGC&e=RETAIL&ad=true',
-        'sec-ch-ua': '"Not(A:Brand";v="99", "Google Chrome";v="133", "Chromium";v="133"',
-        'sec-ch-ua-mobile': '?0',
-        'sec-ch-ua-platform': '"Windows"',
-        'sec-fetch-dest': 'empty',
-        'sec-fetch-mode': 'cors',
-        'sec-fetch-site': 'same-origin',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
-    }
-
     dong_data = []  # 최종 동 정보 저장 리스트
 
     def find_first_non_empty(records, key):

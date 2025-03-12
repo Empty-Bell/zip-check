@@ -3,10 +3,10 @@ import numpy as np
 import re
 
 # 하드코딩된 경로를 config.py의 DATA_PATHS 사용하도록 수정
-from config import DATA_PATHS
+from src.config import DATA_PATHS
 
 # 파일 경로 설정 부분 수정
-sell_data_path = DATA_PATHS["COMPLEX"]
+sell_data_path = DATA_PATHS["SELL"]
 real_price_path = DATA_PATHS["REAL_PRICE"]
 complex_data_path = DATA_PATHS["COMPLEX"]
 output_path = DATA_PATHS["RESULT"]

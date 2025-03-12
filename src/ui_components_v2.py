@@ -3,12 +3,22 @@ from typing import Tuple, Optional, List, Dict, Any
 import pandas as pd
 import plotly.express as px
 from datetime import datetime
-from data_loader import get_sigungu_options, get_dong_options, get_dropdown_options, load_pyeong_data
-from api_client import fetch_complex_list
+from src.data_loader import get_sigungu_options, get_dong_options, get_dropdown_options, load_pyeong_data
+from src.api_client import fetch_complex_list
 import numpy as np
 import plotly.graph_objects as go
 import requests
 import re
+import os
+from dotenv import load_dotenv
+from src.config import DATA_PATHS
+
+# 파일 경로 설정 부분 수정
+real_price_path = DATA_PATHS["REAL_PRICE"]
+output_path = DATA_PATHS["RESULT"]
+
+# .env 파일 로드
+load_dotenv()
 
 # --- 헬퍼 함수 정의 ---
 def to_number(val):
@@ -113,35 +123,21 @@ def fetch_pyeong_list(complex_id: str) -> List[str]:
     """네이버 부동산 API에서 단지별 평형 리스트를 가져옴"""
     url = f"https://new.land.naver.com/api/complexes/{complex_id}"
     cookies = {
-        'NNB': 'C7GYEM4VLE3WK',
-        'ASID': '3b0d2b430000018b621828fa00000065',
+        'NNB': os.getenv('NNB'),
+        'ASID': os.getenv('ASID'),
+        'NAC': os.getenv('NAC'),
         'landHomeFlashUseYn': 'Y',
-        '_fwb': '119q3FQCJEzWfKGKU2BUQo7.1702389509680',
-        '_ga_0ZGH3YC3W6': 'GS1.2.1707832253.1.1.1707832259.0.0.0',
-        '_ga_8P4PY65YZ2': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-        '_ga_GN4BHVX9DS': 'GS1.1.1707832266.1.1.1707832365.49.0.0',
-        '_ga': 'GA1.1.737295237.1698157835',
-        '_ga_451MFZ9CFM': 'GS1.1.1717924411.2.0.1717924411.0.0.0',
-        'wcs_bt': '4f99b5681ce60:1733322484',
-        'NAC': 'cerqCgAMWF7sA',
-        'nhn.realestate.article.rlet_type_cd': 'A01',
-        'nhn.realestate.article.trade_type_cd': '""',
-        'nhn.realestate.article.ipaddress_city': '4100000000',
-        'realestate.beta.lastclick.cortar': '4111700000',
-        'nid_inf': '2104184356',
-        'NID_JKL': 'j/h0g7DHTxfKw7gFYS9RPtGrX03n4Qc2sJhLcRhlqi0=',
-        'NACT': '1',
-        'page_uid': 'i87bKlqVOsVssl4bNGGssssstis-280092',
-        'SRT30': '1740831650',
-        'SRT5': '1740831650',
-        'REALESTATE': 'Sat%20Mar%2001%202025%2021%3A23%3A36%20GMT%2B0900%20(Korean%20Standard%20Time)',
-        'BUC': 'OQMPMmyyCKHg1Xj3EvxfZixgpflUvT9Wk9FuXFvCUPQ='
+        'page_uid': os.getenv('BUILDING_PAGE_UID'),
+        'REALESTATE': os.getenv('BUILDING_REALESTATE'),
+        'SRT30': os.getenv('BUILDING_SRT30'),
+        'SRT5': os.getenv('BUILDING_SRT5'),
+        'BUC': os.getenv('BUILDING_BUC')
     }
     headers = {
         'accept': '*/*',
-        'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8,ko;q=0.7,en-US;q=0.6',
-        'authorization': 'Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IlJFQUxFU1RBVEUiLCJpYXQiOjE3NDA4MzE4MTYsImV4cCI6MTc0MDg0MjYxNn0.8Z2wOtJgzMtsHGlHDWKiesKHUnAIPNtiGMC4SAS8FFA',
-        'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36',
+        'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
+        'authorization': os.getenv('BUILDING_AUTHORIZATION'),
+        'user-agent': os.getenv('USER_AGENT')
     }
     params = {"sameAddressGroup": "true"}
     try:
@@ -184,17 +180,17 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
             if st.button("분석 실행", type="primary"):
                 try:
                     with st.spinner("데이터 수집 중... (1/3)"):
-                        from naver_apt_v5 import main_function as run_01
+                        from src.naver_apt_v5 import main_function as run_01
                         run_01(selected_complexes)
                     with st.spinner("실거래가 분석 중... (2/3)"):
                         try:
-                            temp_df = pd.read_csv("price_data.csv", encoding='utf-8-sig')
+                            temp_df = pd.read_csv(real_price_path, encoding='utf-8-sig')
                             if temp_df.empty or not set(selected_complexes).intersection(temp_df["complexNo"].astype(str)):
                                 st.session_state.app_state["error"] = "실거래가 데이터가 수집되지 않았습니다. 선택된 단지: " + ", ".join(selected_complexes)
                         except Exception as e:
                             st.session_state.app_state["error"] = f"price_data.csv 확인 중 오류: {e}"
                     with st.spinner("데이터 병합 중... (3/3)"):
-                        from sell_price_merge_v2 import main as run_03
+                        from src.sell_price_merge_v2 import main as run_03
                         run_03(selected_complexes)
                     st.session_state.app_state["analysis_done"] = True
                     st.session_state.app_state["last_analysis_time"] = datetime.now()
@@ -205,7 +201,7 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
 
     if st.session_state.app_state.get("analysis_done") and selected_complexes:
         try:
-            df_filtered = pd.read_csv("result.csv", encoding='utf-8-sig')
+            df_filtered = pd.read_csv(output_path, encoding='utf-8-sig')
             df_filtered["complexNo"] = df_filtered["complexNo"].astype(str)
             df_filtered = df_filtered[df_filtered["complexNo"].isin(selected_complexes)]
         except Exception as e:
@@ -253,7 +249,7 @@ def render_apt_selection(prefix: str, region_df: pd.DataFrame) -> Tuple[Optional
 def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFrame):
     """메인 시각화 컴포넌트"""
     try:
-        df_real = pd.read_csv("price_data.csv", encoding='utf-8-sig')
+        df_real = pd.read_csv(real_price_path, encoding='utf-8-sig')
     except Exception as e:
         st.error(f"price_data.csv 파일을 로드하는 중 오류 발생: {e}")
         return

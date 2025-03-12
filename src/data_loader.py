@@ -1,7 +1,7 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Optional, Dict, Tuple
-from config import DATA_PATHS
+from src.config import DATA_PATHS
 
 @st.cache_data
 def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[str]]:
@@ -33,8 +33,8 @@ def load_region_mapping() -> pd.DataFrame:
 def load_analysis_data() -> Tuple[Optional[pd.DataFrame], Optional[pd.DataFrame]]:
     """분석 결과 데이터 로딩"""
     try:
-        df_result = pd.read_csv("result.csv", encoding='utf-8-sig')
-        df_real = pd.read_csv("price_data.csv", encoding='utf-8-sig')
+        df_result = pd.read_csv(DATA_PATHS["RESULT"], encoding='utf-8-sig')
+        df_real = pd.read_csv(DATA_PATHS["REAL_PRICE"], encoding='utf-8-sig')
         return df_result, df_real
     except Exception as e:
         st.error(f"분석 데이터 로드 중 오류: {e}")

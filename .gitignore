@@ -31,3 +31,16 @@ var/
 .vscode/
 *.swp
 *.swo
+
+# Environment variables
+.env
+.env.*
+
+# 로그 파일
+*.log
+
+# 임시 파일
+*.tmp
+temp/
+
+.venv/
