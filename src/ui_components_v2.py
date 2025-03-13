@@ -317,6 +317,8 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                 df_gap[unique_labels[1]] = df_gap[unique_labels[1]].ffill().bfill()
                 
                 if not df_gap.empty:
+                    # tooltip_date 컬럼 추가
+                    df_gap['tooltip_date'] = df_gap['year_month'].dt.strftime("'%y.%m월")
                     df_gap['price_gap'] = abs(df_gap[unique_labels[0]] - df_gap[unique_labels[1]])
                     df_gap['is_estimated'] = df_gap[unique_labels[0]].isna() | df_gap[unique_labels[1]].isna()
                     
@@ -527,6 +529,7 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                 df_gap[unique_labels[1]] = df_gap[unique_labels[1]].ffill().bfill()
                 
                 if not df_gap.empty:
+                    df_gap['tooltip_date'] = df_gap['year_month'].dt.strftime("'%y.%m월")
                     df_gap['price_gap'] = abs(df_gap[unique_labels[0]] - df_gap[unique_labels[1]])
                     df_gap['is_estimated'] = df_gap[unique_labels[0]].isna() | df_gap[unique_labels[1]].isna()
                     
@@ -535,7 +538,6 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                         max_real_gap = real_gaps.max()
                         min_real_gap = real_gaps.min()
                         latest_gap = df_gap['price_gap'].iloc[-1]
-                        
                         if (max_real_gap - min_real_gap) > 0:
                             gap_index = ((1 - (max_real_gap - latest_gap) / (max_real_gap - min_real_gap)) * 100)
                             gap_grade, gap_guide = get_buy_recommendation(gap_index)
