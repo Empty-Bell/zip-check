@@ -4,6 +4,12 @@ import os
 from typing import List, Optional, Dict, Tuple
 from src.config import DATA_PATHS, BASE_DIR, DATA_DIR
 
+st.write("Working Directory:", os.getcwd())
+st.write("BASE_DIR:", BASE_DIR)
+st.write("DATA_DIR:", DATA_DIR)
+for key, path in DATA_PATHS.items():
+    st.write(f"{key}: {path}")
+
 @st.cache_data
 def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[str]]:
     """평형 데이터 로딩 및 필터링"""
