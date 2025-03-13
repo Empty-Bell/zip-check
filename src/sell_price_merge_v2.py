@@ -248,26 +248,24 @@ def main(complex_ids=None):
         st.write("Bubble score sample:", df_sell['bubble_score'].head())
 
         st.write("Computing gaps...")
-        df_sell['real_max_5_gap'] = ''
-        df_sell['real_min_5_gap'] = ''
-        df_sell['kb_upper_gap'] = ''
-        df_sell['deal_min_gap'] = ''
+
+        # 각 gap 값을 개별적으로 처리 (NaN 체크 포함)
         df_sell.loc[mask, 'real_max_5_gap'] = (
-            (df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'pyeong_max_5']) - 1
-        ) * 100
-        df_sell.loc[mask, 'real_max_5_gap'] = df_sell.loc[mask, 'real_max_5_gap'].round(1).astype(str) + '%'
+            ((df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'pyeong_max_5']) - 1) * 100
+        ).apply(lambda x: f"{round(x, 1)}%" if pd.notnull(x) else "")
+
         df_sell.loc[mask, 'real_min_5_gap'] = (
-            (df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'pyeong_min_5']) - 1
-        ) * 100
-        df_sell.loc[mask, 'real_min_5_gap'] = df_sell.loc[mask, 'real_min_5_gap'].round(1).astype(str) + '%'
+            ((df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'pyeong_min_5']) - 1) * 100
+        ).apply(lambda x: f"{round(x, 1)}%" if pd.notnull(x) else "")
+
         df_sell.loc[mask, 'kb_upper_gap'] = (
-            (df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'dealUpperPriceLimit']) - 1
-        ) * 100
-        df_sell.loc[mask, 'kb_upper_gap'] = df_sell.loc[mask, 'kb_upper_gap'].round(1).astype(str) + '%'
+            ((df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'dealUpperPriceLimit']) - 1) * 100
+        ).apply(lambda x: f"{round(x, 1)}%" if pd.notnull(x) else "")
+
         df_sell.loc[mask, 'deal_min_gap'] = (
-            (df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'dealPriceMin2']) - 1
-        ) * 100
-        df_sell.loc[mask, 'deal_min_gap'] = df_sell.loc[mask, 'deal_min_gap'].round(1).astype(str) + '%'
+            ((df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'dealPriceMin2']) - 1) * 100
+        ).apply(lambda x: f"{round(x, 1)}%" if pd.notnull(x) else "")
+
         st.write("Gap sample:", df_sell[['real_max_5_gap', 'real_min_5_gap', 'kb_upper_gap', 'deal_min_gap']].head())
 
         # ========================
