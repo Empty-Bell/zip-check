@@ -1,9 +1,13 @@
 import pandas as pd
 import streamlit as st
 from typing import List, Optional, Dict, Tuple
-from src.config import DATA_PATHS
+from src.config import DATA_PATHS, BASE_DIR, DATA_DIR
 
-st.write("SELL 데이터 경로:", DATA_PATHS["SELL"])
+st.write("Working Directory:", os.getcwd())
+st.write("BASE_DIR:", BASE_DIR)
+st.write("DATA_DIR:", DATA_DIR)
+for key, path in DATA_PATHS.items():
+    st.write(f"{key}: {path}")
 
 @st.cache_data
 def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[str]]:
