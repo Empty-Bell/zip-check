@@ -179,19 +179,52 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
         if st.session_state.app_state.get("apt1_selected") and st.session_state.app_state.get("apt2_selected"):
             if st.button("분석 실행", type="primary"):
                 try:
-                    with st.spinner("데이터 수집 중... (1/3)"):
-                        from src.naver_apt_v5 import main_function as run_01
-                        run_01(selected_complexes)
-                    with st.spinner("실거래가 분석 중... (2/3)"):
-                        try:
-                            temp_df = pd.read_csv(real_price_path, encoding='utf-8-sig')
-                            if temp_df.empty or not set(selected_complexes).intersection(temp_df["complexNo"].astype(str)):
-                                st.session_state.app_state["error"] = "실거래가 데이터가 수집되지 않았습니다. 선택된 단지: " + ", ".join(selected_complexes)
-                        except Exception as e:
-                            st.session_state.app_state["error"] = f"price_data.csv 확인 중 오류: {e}"
-                    with st.spinner("데이터 병합 중... (3/3)"):
-                        from src.sell_price_merge_v2 import main as run_03
-                        run_03(selected_complexes)
+                    # 디버깅 정보 표시를 위한 expander 추가
+                    with st.expander("디버깅 정보", expanded=True):
+                        st.write("선택된 단지:", selected_complexes)
+                        
+                        with st.spinner("데이터 수집 중... (1/3)"):
+                            from src.naver_apt_v5 import main_function as run_01
+                            run_01(selected_complexes)
+                            # naver_apt_v5 결과 확인
+                            if os.path.exists(DATA_PATHS["PRICE"]):
+                                st.success("1단계: price_data.csv 생성 완료")
+                                df_price = pd.read_csv(DATA_PATHS["PRICE"], encoding='utf-8-sig')
+                                st.write("price_data.csv 행 수:", len(df_price))
+                            else:
+                                st.error("1단계: price_data.csv 파일이 생성되지 않았습니다")
+                        
+                        with st.spinner("실거래가 분석 중... (2/3)"):
+                            try:
+                                if os.path.exists(real_price_path):
+                                    temp_df = pd.read_csv(real_price_path, encoding='utf-8-sig')
+                                    if temp_df.empty:
+                                        st.error("2단계: real_price.csv가 비어있습니다")
+                                    else:
+                                        st.success("2단계: real_price.csv 로드 완료")
+                                        st.write("real_price.csv 행 수:", len(temp_df))
+                                        st.write("포함된 단지번호:", temp_df["complexNo"].unique())
+                                else:
+                                    st.error("2단계: real_price.csv 파일이 없습니다")
+                            except Exception as e:
+                                st.error(f"2단계: real_price.csv 확인 중 오류: {e}")
+                        
+                        with st.spinner("데이터 병합 중... (3/3)"):
+                            from src.sell_price_merge_v2 import main as run_03
+                            run_03(selected_complexes)
+                            # 최종 결과 확인
+                            if os.path.exists(output_path):
+                                st.success("3단계: result.csv 생성 완료")
+                                df_result = pd.read_csv(output_path, encoding='utf-8-sig')
+                                st.write("result.csv 행 수:", len(df_result))
+                                st.write("포함된 컬럼:", df_result.columns.tolist())
+                            else:
+                                st.error("3단계: result.csv 파일이 생성되지 않았습니다")
+                                
+                        # 현재 작업 디렉토리와 파일 목록 표시
+                        st.write("현재 작업 디렉토리:", os.getcwd())
+                        st.write("data 폴더 내 파일 목록:", os.listdir("data") if os.path.exists("data") else "data 폴더 없음")
+                    
                     st.session_state.app_state["analysis_done"] = True
                     st.session_state.app_state["last_analysis_time"] = datetime.now()
                     st.success("분석이 완료되었습니다!")
@@ -201,11 +234,29 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
 
     if st.session_state.app_state.get("analysis_done") and selected_complexes:
         try:
+            # 파일 존재 확인
+            if not os.path.exists(output_path):
+                st.error(f"결과 파일이 없습니다: {output_path}")
+                st.stop()
+                
             df_filtered = pd.read_csv(output_path, encoding='utf-8-sig')
+            st.write("데이터 로드 완료 - 행 수:", len(df_filtered))
+            
+            if "complexNo" not in df_filtered.columns:
+                st.error("complexNo 컬럼이 없습니다")
+                st.write("사용 가능한 컬럼:", df_filtered.columns.tolist())
+                st.stop()
+                
             df_filtered["complexNo"] = df_filtered["complexNo"].astype(str)
             df_filtered = df_filtered[df_filtered["complexNo"].isin(selected_complexes)]
+            
+            if df_filtered.empty:
+                st.warning("선택된 단지에 대한 데이터가 없습니다")
+                st.stop()
+                
         except Exception as e:
             st.error(f"데이터 로드 중 오류 발생: {e}")
+            st.write("스택 트레이스:", e.__traceback__)
 
     return selected_complexes, df_filtered
 
