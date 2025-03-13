@@ -3,6 +3,8 @@ import streamlit as st
 from typing import List, Optional, Dict, Tuple
 from src.config import DATA_PATHS
 
+st.write("SELL 데이터 경로:", DATA_PATHS["SELL"])
+
 @st.cache_data
 def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[str]]:
     """평형 데이터 로딩 및 필터링"""
