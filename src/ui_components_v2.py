@@ -175,53 +175,57 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
             st.session_state.app_state["apt2_complex"] = str(apt2_id)
             st.session_state.app_state["apt2_selected"] = True
 
-        # 분석 실행 버튼
         if st.session_state.app_state.get("apt1_selected") and st.session_state.app_state.get("apt2_selected"):
             if st.button("분석 실행", type="primary"):
                 try:
-                    # 디버깅 정보 표시를 위한 expander 추가
                     with st.expander("디버깅 정보", expanded=True):
                         st.write("선택된 단지:", selected_complexes)
                         
-                        with st.spinner("데이터 수집 중... (1/3)"):
+                        # Step 1: naver_apt_v5를 통한 데이터 수집 및 파일 생성 확인
+                        with st.spinner("Step 1: naver_apt_v5를 통한 데이터 수집 중..."):
                             from src.naver_apt_v5 import main_function as run_01
                             run_01(selected_complexes)
-                            # naver_apt_v5 결과 확인
-                            if os.path.exists(DATA_PATHS["PRICE"]):
-                                st.success("1단계: price_data.csv 생성 완료")
-                                df_price = pd.read_csv(DATA_PATHS["PRICE"], encoding='utf-8-sig')
-                                st.write("price_data.csv 행 수:", len(df_price))
-                            else:
-                                st.error("1단계: price_data.csv 파일이 생성되지 않았습니다")
-                        
-                        with st.spinner("실거래가 분석 중... (2/3)"):
-                            try:
-                                if os.path.exists(real_price_path):
-                                    temp_df = pd.read_csv(real_price_path, encoding='utf-8-sig')
-                                    if temp_df.empty:
-                                        st.error("2단계: real_price.csv가 비어있습니다")
-                                    else:
-                                        st.success("2단계: real_price.csv 로드 완료")
-                                        st.write("real_price.csv 행 수:", len(temp_df))
-                                        st.write("포함된 단지번호:", temp_df["complexNo"].unique())
+                            st.success("Step 1 완료: 데이터 수집 완료")
+                            
+                            st.write("----- 생성된 파일 확인 (naver_apt_v5 단계) -----")
+                            files_to_check = {
+                                "COMPLEX": DATA_PATHS["COMPLEX"],
+                                "PYEONG": DATA_PATHS["PYEONG"],
+                                "SELL": DATA_PATHS["SELL"],
+                                "REAL_PRICE": DATA_PATHS["REAL_PRICE"],
+                                "DONG": DATA_PATHS["DONG"],
+                                "PROVIDER": DATA_PATHS["PROVIDER"]
+                            }
+                            for key, path in files_to_check.items():
+                                st.write(f"파일 {key} 경로: {path}")
+                                if os.path.exists(path):
+                                    try:
+                                        df_temp = pd.read_csv(path, encoding='utf-8-sig')
+                                        st.success(f"{key} 파일 생성 완료 ({len(df_temp)} 행)")
+                                    except Exception as e:
+                                        st.error(f"{key} 파일 읽기 오류: {e}")
                                 else:
-                                    st.error("2단계: real_price.csv 파일이 없습니다")
-                            except Exception as e:
-                                st.error(f"2단계: real_price.csv 확인 중 오류: {e}")
+                                    st.error(f"{key} 파일이 존재하지 않습니다.")
                         
-                        with st.spinner("데이터 병합 중... (3/3)"):
+                        # Step 2: sell_price_merge_v2를 통한 데이터 병합 및 result.csv 생성 확인
+                        with st.spinner("Step 2: sell_price_merge_v2를 통한 데이터 병합 중..."):
                             from src.sell_price_merge_v2 import main as run_03
                             run_03(selected_complexes)
-                            # 최종 결과 확인
+                            st.success("Step 2 완료: 데이터 병합 완료")
+                            
+                            st.write("----- 생성된 결과 파일 확인 (sell_price_merge_v2 단계) -----")
+                            st.write("Result 파일 경로:", output_path)
                             if os.path.exists(output_path):
-                                st.success("3단계: result.csv 생성 완료")
-                                df_result = pd.read_csv(output_path, encoding='utf-8-sig')
-                                st.write("result.csv 행 수:", len(df_result))
-                                st.write("포함된 컬럼:", df_result.columns.tolist())
+                                try:
+                                    df_result = pd.read_csv(output_path, encoding='utf-8-sig')
+                                    st.success(f"Result 파일 생성 완료 ({len(df_result)} 행)")
+                                    st.write("Result 파일에 포함된 컬럼:", df_result.columns.tolist())
+                                except Exception as e:
+                                    st.error(f"Result 파일 읽기 오류: {e}")
                             else:
-                                st.error("3단계: result.csv 파일이 생성되지 않았습니다")
+                                st.error("Result 파일이 생성되지 않았습니다.")
                                 
-                        # 현재 작업 디렉토리와 파일 목록 표시
+                        # 현재 작업 디렉토리와 data 폴더 내 파일 목록 표시
                         st.write("현재 작업 디렉토리:", os.getcwd())
                         st.write("data 폴더 내 파일 목록:", os.listdir("data") if os.path.exists("data") else "data 폴더 없음")
                     
