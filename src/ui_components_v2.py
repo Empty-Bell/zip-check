@@ -13,11 +13,14 @@ import os
 from dotenv import load_dotenv
 from src.config import DATA_PATHS
 
+# 파일 경로 설정 부분 수정
 real_price_path = DATA_PATHS["REAL_PRICE"]
 output_path = DATA_PATHS["RESULT"]
 
+# .env 파일 로드
 load_dotenv()
 
+# --- 헬퍼 함수 정의 ---
 def to_number(val):
     if pd.isnull(val):
         return float('nan')
@@ -93,6 +96,7 @@ def style_gap(cell_value):
     return ""
 
 def get_buy_recommendation(gap_index):
+    """갭 지수에 따른 매수 추천 등급과 가이드 반환"""
     if pd.isnull(gap_index):
         return '', ''
     if gap_index >= 80:
@@ -103,6 +107,7 @@ def get_buy_recommendation(gap_index):
         return '추천 🟢', "갭이 작은 상태입니다."
 
 def get_bubble_grade(bubble_index):
+    """버블지수에 따른 상태와 가이드 반환 (고객 요청 반영)"""
     if pd.isnull(bubble_index):
         return '', ''
     if bubble_index > 100:
@@ -112,8 +117,10 @@ def get_bubble_grade(bubble_index):
     else:
         return '보통 🟢', '매물 가격대가 적정 수준입니다.'
 
+# --- 기존 함수들 ---
 @st.cache_data
 def fetch_pyeong_list(complex_id: str) -> List[str]:
+    """네이버 부동산 API에서 단지별 평형 리스트를 가져옴"""
     url = f"https://new.land.naver.com/api/complexes/{complex_id}"
     cookies = {
         'NNB': os.getenv('NNB'),
@@ -138,6 +145,7 @@ def fetch_pyeong_list(complex_id: str) -> List[str]:
         if response.status_code == 200:
             data = response.json()
             pyeong_list = [pyeong.get("pyeongName2", "") for pyeong in data.get("complexPyeongDetailList", [])]
+            # 영문 제거하여 pyeongName3 생성
             pyeong_list = [re.sub(r'[A-Za-z]+$', '', pyeong) for pyeong in pyeong_list if pyeong]
             return sorted(list(set(pyeong_list)))
         else:
@@ -148,16 +156,19 @@ def fetch_pyeong_list(complex_id: str) -> List[str]:
         return []
 
 def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
+    """사이드바 렌더링"""
     selected_complexes = []
     df_filtered = pd.DataFrame()
 
     with st.sidebar:
         st.title("아파트 단지 선택")
+        # 아파트 1 선택
         apt1_id, apt1_name = render_apt_selection("1", region_df)
         if apt1_id:
             selected_complexes.append(str(apt1_id))
             st.session_state.app_state["apt1_complex"] = str(apt1_id)
             st.session_state.app_state["apt1_selected"] = True
+        # 아파트 2 선택
         apt2_id, apt2_name = render_apt_selection("2", region_df)
         if apt2_id:
             selected_complexes.append(str(apt2_id))
@@ -167,33 +178,94 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
         if st.session_state.app_state.get("apt1_selected") and st.session_state.app_state.get("apt2_selected"):
             if st.button("분석 실행", type="primary"):
                 try:
-                    from src.naver_apt_v5 import main_function as run_01
-                    run_01(selected_complexes)
-                    from src.sell_price_merge_v2 import main as run_03
-                    run_03(selected_complexes)
+                    with st.expander("디버깅 정보", expanded=True):
+                        st.write("선택된 단지:", selected_complexes)
+                        
+                        # Step 1: naver_apt_v5를 통한 데이터 수집 및 파일 생성 확인
+                        with st.spinner("Step 1: naver_apt_v5를 통한 데이터 수집 중..."):
+                            from src.naver_apt_v5 import main_function as run_01
+                            run_01(selected_complexes)
+                            st.success("Step 1 완료: 데이터 수집 완료")
+                            
+                            st.write("----- 생성된 파일 확인 (naver_apt_v5 단계) -----")
+                            files_to_check = {
+                                "COMPLEX": DATA_PATHS["COMPLEX"],
+                                "PYEONG": DATA_PATHS["PYEONG"],
+                                "SELL": DATA_PATHS["SELL"],
+                                "REAL_PRICE": DATA_PATHS["REAL_PRICE"],
+                                "DONG": DATA_PATHS["DONG"],
+                                "PROVIDER": DATA_PATHS["PROVIDER"]
+                            }
+                            for key, path in files_to_check.items():
+                                st.write(f"파일 {key} 경로: {path}")
+                                if os.path.exists(path):
+                                    try:
+                                        df_temp = pd.read_csv(path, encoding='utf-8-sig')
+                                        st.success(f"{key} 파일 생성 완료 ({len(df_temp)} 행)")
+                                    except Exception as e:
+                                        st.error(f"{key} 파일 읽기 오류: {e}")
+                                else:
+                                    st.error(f"{key} 파일이 존재하지 않습니다.")
+                        
+                        # Step 2: sell_price_merge_v2를 통한 데이터 병합 및 result.csv 생성 확인
+                        with st.spinner("Step 2: sell_price_merge_v2를 통한 데이터 병합 중..."):
+                            from src.sell_price_merge_v2 import main as run_03
+                            run_03(selected_complexes)
+                            st.success("Step 2 완료: 데이터 병합 완료")
+                            
+                            st.write("----- 생성된 결과 파일 확인 (sell_price_merge_v2 단계) -----")
+                            st.write("Result 파일 경로:", output_path)
+                            if os.path.exists(output_path):
+                                try:
+                                    df_result = pd.read_csv(output_path, encoding='utf-8-sig')
+                                    st.success(f"Result 파일 생성 완료 ({len(df_result)} 행)")
+                                    st.write("Result 파일에 포함된 컬럼:", df_result.columns.tolist())
+                                except Exception as e:
+                                    st.error(f"Result 파일 읽기 오류: {e}")
+                            else:
+                                st.error("Result 파일이 생성되지 않았습니다.")
+                                
+                        # 현재 작업 디렉토리와 data 폴더 내 파일 목록 표시
+                        st.write("현재 작업 디렉토리:", os.getcwd())
+                        st.write("data 폴더 내 파일 목록:", os.listdir("data") if os.path.exists("data") else "data 폴더 없음")
+                    
+                    st.session_state.app_state["analysis_done"] = True
+                    st.session_state.app_state["last_analysis_time"] = datetime.now()
                     st.success("분석이 완료되었습니다!")
                 except Exception as e:
+                    st.session_state.app_state["error"] = str(e)
                     st.error(f"분석 중 오류 발생: {e}")
 
     if st.session_state.app_state.get("analysis_done") and selected_complexes:
         try:
+            # 파일 존재 확인
             if not os.path.exists(output_path):
                 st.error(f"결과 파일이 없습니다: {output_path}")
                 st.stop()
+                
             df_filtered = pd.read_csv(output_path, encoding='utf-8-sig')
+            st.write("데이터 로드 완료 - 행 수:", len(df_filtered))
+            
             if "complexNo" not in df_filtered.columns:
                 st.error("complexNo 컬럼이 없습니다")
+                st.write("사용 가능한 컬럼:", df_filtered.columns.tolist())
                 st.stop()
+                
             df_filtered["complexNo"] = df_filtered["complexNo"].astype(str)
             df_filtered = df_filtered[df_filtered["complexNo"].isin(selected_complexes)]
+            
             if df_filtered.empty:
                 st.warning("선택된 단지에 대한 데이터가 없습니다")
                 st.stop()
+                
         except Exception as e:
             st.error(f"데이터 로드 중 오류 발생: {e}")
+            st.write("스택 트레이스:", e.__traceback__)
+
     return selected_complexes, df_filtered
 
 def render_apt_selection(prefix: str, region_df: pd.DataFrame) -> Tuple[Optional[str], Optional[str]]:
+    """아파트 선택 UI 컴포넌트"""
     st.sidebar.subheader(f"아파트{prefix} 지역 선택")
     sido_options = get_dropdown_options(region_df, "시/도")
     selected_sido = st.sidebar.selectbox(f"시/도({prefix})", [""] + sido_options, key=f"sido_{prefix}")
@@ -219,15 +291,18 @@ def render_apt_selection(prefix: str, region_df: pd.DataFrame) -> Tuple[Optional
     if not selected_apt:
         return None, None
     pyeong_options = fetch_pyeong_list(str(complex_options[selected_apt]))
+    # multiselect를 selectbox로 변경
     selected_pyeong = st.sidebar.selectbox(
         f"아파트{prefix} 평형 선택",
-        [""] + pyeong_options,
+        [""] + pyeong_options,  # 빈 문자열을 추가하여 선택 해제 가능
         key=f"pyeong_{prefix}"
     )
+    # 단일 값으로 저장 (리스트가 아님)
     st.session_state.app_state[f"apt{prefix}_pyeong"] = selected_pyeong if selected_pyeong else None
     return str(complex_options[selected_apt]), selected_apt
 
 def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFrame):
+    """메인 시각화 컴포넌트"""
     try:
         df_real = pd.read_csv(real_price_path, encoding='utf-8-sig')
     except Exception as e:
@@ -235,50 +310,57 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
         return
 
     try:
+        # 데이터 타입 변환 및 필터링 로직
         df_real["complexNo"] = df_real["complexNo"].astype(str)
         df_real["pyeongName3"] = df_real["pyeongName3"].astype(str)
         df_filtered["complexNo"] = df_filtered["complexNo"].astype(str)
         df_filtered["pyeongName3"] = df_filtered["pyeongName3"].astype(str)
 
+        # 각 아파트의 선택된 평형과 단지 ID 가져오기
         selected_pyeong_apt1 = st.session_state.app_state.get("apt1_pyeong", None)
         selected_pyeong_apt2 = st.session_state.app_state.get("apt2_pyeong", None)
         apt1_complex = st.session_state.app_state.get("apt1_complex", None)
         apt2_complex = st.session_state.app_state.get("apt2_complex", None)
 
+        # 필터링된 데이터프레임 리스트 초기화
         df_filtered_list = []
         df_real_filtered_list = []
 
-        if apt1_complex and selected_pyeong_apt1:
+        # 아파트1 필터링
+        if apt1_complex and selected_pyeong_apt1:  # selected_pyeong_apt1이 None이 아닌 경우
             df_filtered_list.append(
                 df_filtered[
                     (df_filtered["complexNo"] == apt1_complex) &
-                    (df_filtered["pyeongName3"] == selected_pyeong_apt1)
+                    (df_filtered["pyeongName3"] == selected_pyeong_apt1)  # == 사용
                 ]
             )
             df_real_filtered_list.append(
                 df_real[
                     (df_real["complexNo"] == apt1_complex) &
-                    (df_real["pyeongName3"] == selected_pyeong_apt1)
+                    (df_real["pyeongName3"] == selected_pyeong_apt1)  # == 사용
                 ]
             )
 
-        if apt2_complex and selected_pyeong_apt2:
+        # 아파트2 필터링
+        if apt2_complex and selected_pyeong_apt2:  # selected_pyeong_apt2가 None이 아닌 경우
             df_filtered_list.append(
                 df_filtered[
                     (df_filtered["complexNo"] == apt2_complex) &
-                    (df_filtered["pyeongName3"] == selected_pyeong_apt2)
+                    (df_filtered["pyeongName3"] == selected_pyeong_apt2)  # == 사용
                 ]
             )
             df_real_filtered_list.append(
                 df_real[
                     (df_real["complexNo"] == apt2_complex) &
-                    (df_real["pyeongName3"] == selected_pyeong_apt2)
+                    (df_real["pyeongName3"] == selected_pyeong_apt2)  # == 사용
                 ]
             )
 
+        # 필터링된 결과 합치기
         df_filtered = pd.concat(df_filtered_list, ignore_index=True) if df_filtered_list else pd.DataFrame()
         df_real_filtered = pd.concat(df_real_filtered_list, ignore_index=True) if df_real_filtered_list else pd.DataFrame()
 
+        # 데이터가 없는 경우 예외 처리
         if df_real_filtered.empty:
             st.warning("선택된 아파트-평형 쌍에 해당하는 데이터가 없습니다.")
             df_real_filtered = df_real[df_real["complexNo"].isin(selected_complexes)].copy()
@@ -288,13 +370,16 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
         st.error(f"데이터 처리 중 오류 발생: {e}")
         return
 
+    # 갭 지수 계산을 여기서 먼저 수행
     gap_index = None
     gap_grade = None
     gap_guide = None
     
+    # 두 아파트의 월별 평균 실거래가 격차 계산
     if df_real_filtered is not None and not df_real_filtered.empty:
         df_rp = df_real_filtered[df_real_filtered["dealDateClass"].isin([5, 3, 1])].copy()
         if not df_rp.empty:
+            # 기존 계산 로직
             df_rp["dealAmount_numeric"] = pd.to_numeric(
                 df_rp["dealAmount"].astype(str).str.replace(",", ""),
                 errors="coerce"
@@ -308,29 +393,35 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                 df_rp["year_month"] = df_rp["dealDate"].dt.to_period("M").dt.to_timestamp()
                 df_monthly = df_rp.groupby(["complexName", "pyeongName3", "year_month"], as_index=False).agg({"dealAmount_eok": "mean"})
                 df_monthly["color_label"] = df_monthly["complexName"].astype(str) + " " + df_monthly["pyeongName3"].astype(str) + "평"
+
+                # 피벗 테이블 형태로 변환
                 df_gap = df_monthly.pivot(
                     index='year_month',
                     columns='color_label',
                     values='dealAmount_eok'
                 ).reset_index()
+                
+                # 각 아파트별로 직전 실거래가를 forward/backward fill로 채움
                 df_gap[unique_labels[0]] = df_gap[unique_labels[0]].ffill().bfill()
                 df_gap[unique_labels[1]] = df_gap[unique_labels[1]].ffill().bfill()
                 
                 if not df_gap.empty:
-                    # tooltip_date 컬럼 추가
-                    df_gap['tooltip_date'] = df_gap['year_month'].dt.strftime("'%y.%m월")
                     df_gap['price_gap'] = abs(df_gap[unique_labels[0]] - df_gap[unique_labels[1]])
                     df_gap['is_estimated'] = df_gap[unique_labels[0]].isna() | df_gap[unique_labels[1]].isna()
                     
+                    # 실제 데이터에서 최대/최소 갭
                     real_gaps = df_gap.loc[~df_gap['is_estimated'], 'price_gap']
                     if not real_gaps.empty:
                         max_real_gap = real_gaps.max()
                         min_real_gap = real_gaps.min()
                         latest_gap = df_gap['price_gap'].iloc[-1]
+                        
+                        # 갭 지수 계산
                         if (max_real_gap - min_real_gap) > 0:
-                            gap_index = ((1 - (max_real_gap - latest_gap) / (max_real_gap - min_real_gap)) * 100)
+                            gap_index = ((1-(max_real_gap - latest_gap) / (max_real_gap - min_real_gap)) * 100)
                             gap_grade, gap_guide = get_buy_recommendation(gap_index)
 
+    # 기본 정보 테이블 렌더링
     st.subheader("📄 기본 정보")
     try:
         if df_filtered.empty:
@@ -376,7 +467,10 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # 투자 지표 요약 섹션 (HTML 테이블로 수정)
     st.subheader("📌 투자 지표 요약")
+
+    # 먼저, 커스텀 툴팁용 CSS를 삽입합니다.
     st.markdown("""
     <style>
     th[data-tooltip] {
@@ -389,7 +483,7 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
         bottom: -120%;
         left: 50%;
         transform: translateX(-50%);
-        background: rgba(85, 85, 85, 0.7);
+        background: rgba(85, 85, 85, 0.7); /* #555 대신 90% 불투명으로 설정 */
         color: #fff;
         padding: 8px;
         border-radius: 4px;
@@ -409,18 +503,22 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
 
     try:
         if not df_filtered.empty:
+            # 매매 데이터만 필터링
             df_metrics = df_filtered[df_filtered["tradeTypeName"] == "매매"].copy()
             if not df_metrics.empty:
+                # bubble_score가 있는지 확인
                 if 'bubble_score' not in df_metrics.columns:
-                    st.error("bubble_score 컬럼이 없습니다. 데이터 파일을 확인하세요.")
-                    df_metrics['bubble_score'] = 50
+                    st.error("bubble_score 컬럼이 df_metrics에 없습니다. 데이터 파일을 확인하세요.")
+                    df_metrics['bubble_score'] = 50  # 기본값 설정
 
+                # 아파트-평형별로 그룹화하여 bubble_score의 중위값 계산
                 df_bubble = df_metrics.groupby(['complexNo', 'complexName', 'pyeongName3'])['bubble_score'].median().reset_index()
                 df_bubble = df_bubble.groupby('complexName').agg({
                     'bubble_score': 'mean',
-                    'pyeongName3': 'first'
+                    'pyeongName3': 'first'  # 평형 정보 추가
                 }).reset_index()
 
+                # 다중 줄 툴팁 텍스트 (줄바꿈은 \n 사용)
                 gap_tooltip_text = (
                     "갭 지수: 두 아파트 간 실거래가 갭에 따른 매수 추천 등급\n"
                     "80점↑: 유의 🔴 - 매수 비추\n"
@@ -434,37 +532,46 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                     "80점↓: 보통 🟢 - 매수 검토"
                 )
 
+                # HTML 테이블 생성
                 html_table = "<table style='border-collapse: collapse; width: 100%;'>"
+                
+                # 헤더 행 (전체 열 영역에 data-tooltip 적용)
                 html_table += "<tr style='background-color: #f0f2f6; font-weight: bold; text-align: center;'>"
                 html_table += "<th style='border: 1px solid #e0e0e0; padding: 8px; width: 34%;'>아파트</th>"
                 html_table += f"<th style='border: 1px solid #e0e0e0; padding: 8px; width: 33%;' data-tooltip='{gap_tooltip_text}'>갭 지수</th>"
                 html_table += f"<th style='border: 1px solid #e0e0e0; padding: 8px; width: 33%;' data-tooltip='{bubble_tooltip_text}'>버블 지수</th>"
                 html_table += "</tr>"
 
-                if len(df_bubble) >= 2:
+                # 데이터 행 (두 개의 단지 행; 갭 지수는 두 행에 걸쳐 병합)
+                if len(df_bubble) >= 2:  # 최소 두 개의 단지가 필요
+                    # 첫 번째 단지
                     row1 = df_bubble.iloc[0]
                     bubble_score1 = int(round(row1['bubble_score'], 0))
                     bubble_grade1, bubble_guide1 = get_bubble_grade(bubble_score1)
                     bubble_cell1 = f"{bubble_score1}점 ({bubble_grade1})<br><span style='color: gray; font-size: 0.9em;'>{bubble_guide1}</span>"
 
+                    # 두 번째 단지
                     row2 = df_bubble.iloc[1]
                     bubble_score2 = int(round(row2['bubble_score'], 0))
                     bubble_grade2, bubble_guide2 = get_bubble_grade(bubble_score2)
                     bubble_cell2 = f"{bubble_score2}점 ({bubble_grade2})<br><span style='color: gray; font-size: 0.9em;'>{bubble_guide2}</span>"
 
+                    # 갭 지수 정보 (두 행에 걸쳐 표시)
                     if gap_index is not None:
-                        gap_index_int = int(round(gap_index, 0))
+                        gap_index_int = int(round(gap_index, 0))  # 소수점 제거 및 정수 변환
                         gap_grade, gap_guide = get_buy_recommendation(gap_index_int)
                         gap_cell = f"{gap_index_int}점 ({gap_grade})<br><span style='color: gray; font-size: 0.9em;'>{gap_guide}</span>"
                     else:
                         gap_cell = "-"
 
+                    # 첫 번째 행 (아파트명 + 평형, 갭 지수(병합), 버블 지수)
                     html_table += "<tr style='text-align: center;'>"
                     html_table += f"<td style='border: 1px solid #e0e0e0; padding: 8px;'>{row1['complexName']}<br>{row1['pyeongName3']}평</td>"
                     html_table += f"<td style='border: 1px solid #e0e0e0; padding: 8px;' rowspan='2'>{gap_cell}</td>"
                     html_table += f"<td style='border: 1px solid #e0e0e0; padding: 8px;'>{bubble_cell1}</td>"
                     html_table += "</tr>"
 
+                    # 두 번째 행 (아파트명 + 평형, 버블 지수)
                     html_table += "<tr style='text-align: center;'>"
                     html_table += f"<td style='border: 1px solid #e0e0e0; padding: 8px;'>{row2['complexName']}<br>{row2['pyeongName3']}평</td>"
                     html_table += f"<td style='border: 1px solid #e0e0e0; padding: 8px;'>{bubble_cell2}</td>"
@@ -483,6 +590,7 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # 실거래가 추이 그래프 렌더링
     st.subheader("📈 실거래가 추이")
     try:
         period_option = st.radio(
@@ -519,44 +627,57 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
             unique_labels = df_rp["color_label"].unique()
             color_map = {label: colors[i % len(colors)] for i, label in enumerate(unique_labels)}
 
+            # 두 아파트의 월별 평균 실거래가 격차 계산
             if len(unique_labels) == 2:
+                # 피벗 테이블 형태로 변환
                 df_gap = df_monthly.pivot(
                     index='year_month',
                     columns='color_label',
                     values='dealAmount_eok'
                 ).reset_index()
-                df_gap[unique_labels[0]] = df_gap[unique_labels[0]].ffill().bfill()
-                df_gap[unique_labels[1]] = df_gap[unique_labels[1]].ffill().bfill()
+                
+                # 각 아파트별로 직전 실거래가를 forward/backward fill로 채움
+                df_gap[unique_labels[0]] = (
+                    df_gap[unique_labels[0]]
+                    .ffill()
+                    .bfill()
+                )
+                df_gap[unique_labels[1]] = (
+                    df_gap[unique_labels[1]]
+                    .ffill()
+                    .bfill()
+                )
                 
                 if not df_gap.empty:
-                    df_gap['tooltip_date'] = df_gap['year_month'].dt.strftime("'%y.%m월")
+                    # 실거래가 격차 계산 (절대값)
                     df_gap['price_gap'] = abs(df_gap[unique_labels[0]] - df_gap[unique_labels[1]])
-                    df_gap['is_estimated'] = df_gap[unique_labels[0]].isna() | df_gap[unique_labels[1]].isna()
-                    
-                    real_gaps = df_gap.loc[~df_gap['is_estimated'], 'price_gap']
-                    if not real_gaps.empty:
-                        max_real_gap = real_gaps.max()
-                        min_real_gap = real_gaps.min()
-                        latest_gap = df_gap['price_gap'].iloc[-1]
-                        if (max_real_gap - min_real_gap) > 0:
-                            gap_index = ((1 - (max_real_gap - latest_gap) / (max_real_gap - min_real_gap)) * 100)
-                            gap_grade, gap_guide = get_buy_recommendation(gap_index)
+                    # 툴팁용 날짜 포맷
+                    df_gap['tooltip_date'] = df_gap['year_month'].dt.strftime("'%y.%m월")
+                    # 값이 채워진 것인지 표시
+                    df_gap['is_filled_0'] = df_gap[unique_labels[0]].ne(df_gap[unique_labels[0]].shift())
+                    df_gap['is_filled_1'] = df_gap[unique_labels[1]].ne(df_gap[unique_labels[1]].shift())
+                    df_gap['is_estimated'] = (~df_gap['is_filled_0']) | (~df_gap['is_filled_1'])
 
             fig_line = go.Figure()
             fig_line.update_layout(hovermode="closest")
 
+            # 실제 데이터와 추정치 데이터 처리 전에 갭 지수 계산
             if len(unique_labels) == 2 and not df_gap.empty:
+                # 실제 데이터에서 최대/최소 갭
                 real_gaps = df_gap.loc[~df_gap['is_estimated'], 'price_gap']
                 max_real_gap = real_gaps.max()
                 min_real_gap = real_gaps.min()
+                # 가장 최근 갭 (추정치 포함)
                 latest_gap = df_gap['price_gap'].iloc[-1]
                 
-                gap_index = ((1 - (max_real_gap - latest_gap) / (max_real_gap - min_real_gap)) * 100) if (max_real_gap - min_real_gap) > 0 else 0
+                # 갭 지수 계산 ((1-(최대갭-최신갭)/(최대갭-최소갭))×100)
+                gap_index = ((1-(max_real_gap - latest_gap) / (max_real_gap - min_real_gap)) * 100) if (max_real_gap - min_real_gap) > 0 else 0
                 gap_grade, gap_guide = get_buy_recommendation(gap_index)
 
                 mask_real = ~df_gap['is_estimated']
                 mask_estimated = df_gap['is_estimated']
 
+                # Bar 차트 추가 (이전 코드와 동일)
                 if mask_real.any():
                     fig_line.add_trace(go.Bar(
                         x=df_gap.loc[mask_real, 'year_month'],
@@ -568,16 +689,16 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                         customdata=df_gap.loc[mask_real, ['tooltip_date']].values
                     ))
 
-                    if mask_estimated.any():
-                        fig_line.add_trace(go.Bar(
-                            x=df_gap.loc[mask_estimated, 'year_month'],
-                            y=df_gap.loc[mask_estimated, 'price_gap'],
-                            name='실거래가 갭(추정)',
-                            marker_color='rgba(180, 180, 180, 0.2)',
-                            yaxis='y2',
-                            hovertemplate='%{customdata[0]}<br>갭 금액(추정): %{y:.1f}억<extra></extra>',
-                            customdata=df_gap.loc[mask_estimated, ['tooltip_date']].values
-                        ))
+                if mask_estimated.any():
+                    fig_line.add_trace(go.Bar(
+                        x=df_gap.loc[mask_estimated, 'year_month'],
+                        y=df_gap.loc[mask_estimated, 'price_gap'],
+                        name='실거래가 갭(추정)',
+                        marker_color='rgba(180, 180, 180, 0.2)',
+                        yaxis='y2',
+                        hovertemplate='%{customdata[0]}<br>갭 금액(추정): %{y:.1f}억<extra></extra>',
+                        customdata=df_gap.loc[mask_estimated, ['tooltip_date']].values
+                    ))
 
             for label in unique_labels:
                 monthly_sub = df_monthly[df_monthly["color_label"] == label].sort_values("year_month")
@@ -625,12 +746,12 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                 legend=dict(
                     bgcolor='rgba(255,255,255,0)',
                     bordercolor='rgba(255,255,255,0)',
-                    x=0.01,
-                    y=1.15,
-                    orientation='h'
+                    x=0.01,  # 왼쪽 여백에서의 위치
+                    y=1.15,  # 그래프 위쪽으로 이동
+                    orientation='h'  # 범례를 가로로 배열
                 ),
                 legend_title="",
-                margin=dict(l=20, r=20, t=40, b=10),
+                margin=dict(l=20, r=20, t=40, b=10),  # 상단 여백 증가
                 autosize=True,
                 bargap=0.3
             )
@@ -650,7 +771,177 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
 
     st.markdown("<hr>", unsafe_allow_html=True)
 
+    # 매물 현황 플롯차트 렌더링 (실거래가표와 매물 리스트표 사이)
     st.subheader("📊 매물 현황")
+    if not df_filtered[df_filtered["tradeTypeName"] == "매매"].empty:
+        df_for_range = df_filtered[df_filtered["tradeTypeName"] == "매매"].copy()
+        def draw_range_plot(df: pd.DataFrame):
+            group_cols = ["complexName", "pyeongName3"]
+            agg_dict = {
+                "pyeong_max_5": "first",
+                "pyeong_min_5": "first",
+                "latestdealAmount": "first",
+                "latestdealDate": "first",
+                "pyeong_max_5_DT": "first",
+                "pyeong_min_5_DT": "first",
+                "latestdealFloor": "first",
+            }
+            df_group = df.groupby(group_cols, as_index=False).agg(agg_dict)
+            df_group["max_val"] = df_group["pyeong_max_5"].apply(to_number) / 10000
+            df_group["min_val"] = df_group["pyeong_min_5"].apply(to_number) / 10000
+            df_group["latestdealAmount"] = df_group["latestdealAmount"].apply(to_number)
+            df_group["star_val"] = df_group["latestdealAmount"].apply(to_number) / 10000
+            df_group.sort_values(by=["complexName", "pyeongName3"], inplace=True)
+            combos = list(df_group[["complexName", "pyeongName3"]].itertuples(index=False, name=None))
+            x_mapping = {}
+            current_x = 0
+            last_apt = None
+            apt_boundaries = []
+            for (apt, pnum) in combos:
+                if last_apt is not None and apt != last_apt:
+                    apt_boundaries.append(current_x - 0.5)
+                x_mapping[(apt, pnum)] = current_x
+                current_x += 1
+                last_apt = apt
+            fig = go.Figure()
+            for (apt, pnum) in combos:
+                x_val = x_mapping[(apt, pnum)]
+                row_g = df_group[(df_group["complexName"] == apt) & (df_group["pyeongName3"] == pnum)].iloc[0]
+                minv = row_g["min_val"]
+                maxv = row_g["max_val"]
+                starv = row_g["star_val"]
+                star_date = row_g["latestdealDate"]
+                max_date_str = format_date(row_g["pyeong_max_5_DT"])
+                min_date_str = format_date(row_g["pyeong_min_5_DT"])
+                max_str = f"{format_eokwan(row_g['pyeong_max_5'])}({max_date_str})" if max_date_str != "-" else format_eokwan(row_g["pyeong_max_5"])
+                min_str = f"{format_eokwan(row_g['pyeong_min_5'])}({min_date_str})" if min_date_str != "-" else format_eokwan(row_g["pyeong_min_5"])
+                count_points = 20
+                yvals = np.linspace(minv, maxv, count_points)
+                xvals = [x_val]*count_points
+                custom_line = [[max_str, min_str]]*count_points
+                range_hover = (
+                    "최근 5년 전고점 : %{customdata[0]}<br>"
+                    "최근 5년 전저점 : %{customdata[1]}<extra></extra>"
+                )
+                fig.add_trace(go.Scatter(
+                    x=xvals,
+                    y=yvals,
+                    mode="lines",
+                    line=dict(color="blue", width=1),
+                    customdata=custom_line,
+                    hovertemplate=range_hover,
+                    showlegend=False
+                ))
+                top_points = 5
+                xvals_top = np.linspace(x_val-0.1, x_val+0.1, top_points)
+                yvals_top = [maxv]*top_points
+                top_data = [[max_str]]*top_points
+                fig.add_trace(go.Scatter(
+                    x=xvals_top,
+                    y=yvals_top,
+                    mode="lines",
+                    line=dict(color="blue", width=1),
+                    customdata=top_data,
+                    hovertemplate="최근 5년 전고점 : %{customdata[0]}<extra></extra>",
+                    showlegend=False
+                ))
+                bot_points = 5
+                xvals_bot = np.linspace(x_val-0.1, x_val+0.1, bot_points)
+                yvals_bot = [minv]*bot_points
+                bot_data = [[min_str]]*bot_points
+                fig.add_trace(go.Scatter(
+                    x=xvals_bot,
+                    y=yvals_bot,
+                    mode="lines",
+                    line=dict(color="blue", width=1),
+                    customdata=bot_data,
+                    hovertemplate="최근 5년 전저점 : %{customdata[0]}<extra></extra>",
+                    showlegend=False
+                ))
+                df_points = df[(df["complexName"] == apt) & (df["pyeongName3"] == pnum)].copy()
+                if not df_points.empty:
+                    df_points["price_val"] = df_points["dealOrWarrantPrc2"].apply(to_number) / 10000
+                    df_points["gap_html"] = df_points["real_max_5_gap"].apply(color_gap_html)
+                    df_points["tooltip"] = df_points.apply(
+                        lambda r: [
+                            str(r["pyeongName"]),
+                            str(r["floorInfo"]),
+                            str(r["dealOrWarrantPrc"]),
+                            r["gap_html"]
+                        ],
+                        axis=1
+                    )
+                    point_hover = (
+                        "평형타입: %{customdata[0]}<br>"
+                        "층수: %{customdata[1]}<br>"
+                        "호가: %{customdata[2]}<br>"
+                        "전고점 갭: %{customdata[3]}<extra></extra>"
+                    )
+                    fig.add_trace(go.Scatter(
+                        x=[x_val]*len(df_points),
+                        y=df_points["price_val"],
+                        mode="markers",
+                        marker=dict(size=8, color="red", opacity=0.3),
+                        hovertemplate=point_hover,
+                        customdata=df_points["tooltip"].tolist(),
+                        showlegend=False
+                    ))
+                if not pd.isnull(starv) and starv > 0:
+                    star_date_str = format_date(star_date)
+                    star_val_str = format_eokwan(row_g["latestdealAmount"])
+                    latestdealFloor = row_g["latestdealFloor"]
+                    floor_str = f"({int(latestdealFloor)}층)" if pd.notnull(latestdealFloor) and str(latestdealFloor).strip() != "" else ""
+                    label_text = f"최신 실거래가<br>{star_val_str}{floor_str}<br>{star_date_str}"
+                    fig.add_trace(go.Scatter(
+                        x=[x_val],
+                        y=[starv],
+                        mode="markers+text",
+                        text=[label_text],
+                        texttemplate="%{text}",
+                        textposition="middle right",
+                        textfont=dict(color="black", size=11),
+                        marker_symbol="star",
+                        marker_size=15,
+                        marker_color="yellow",
+                        marker_line_color="black",
+                        marker_line_width=1,
+                        opacity=1.0,
+                        hoverinfo="none",
+                        showlegend=False
+                    ))
+            shapes = []
+            for boundary_x in apt_boundaries:
+                shapes.append(dict(
+                    type="line",
+                    xref="x", yref="paper",
+                    x0=boundary_x, x1=boundary_x,
+                    y0=0, y1=1,
+                    line=dict(color="gray", dash="dot")
+                ))
+            fig.update_layout(shapes=shapes)
+            x_vals = [x_mapping[c] for c in combos]
+            x_text = [f"{apt} {pnum}평" for (apt, pnum) in combos]
+            fig.update_xaxes(
+                range=[-0.5, len(combos)-0.5],
+                tickmode="array",
+                tickvals=x_vals,
+                ticktext=x_text
+            )
+            fig.update_yaxes(
+                ticksuffix="억",
+                zeroline=True
+            )
+            fig.update_layout(
+                hovermode="closest",
+                margin=dict(l=10, r=10, t=10, b=10),
+                autosize=True,
+                height=500
+            )
+            return fig
+        fig_range = draw_range_plot(df_for_range)
+        st.plotly_chart(fig_range, use_container_width=True)
+    
+    # 매물 리스트 렌더링 (기존 코드와 동일)
     try:
         if not df_filtered[df_filtered["tradeTypeName"] == "매매"].empty:
             df_for_list = df_filtered[df_filtered["tradeTypeName"] == "매매"].copy()
@@ -703,6 +994,7 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                 return f"https://new.land.naver.com/complexes/{row['complexNo']}?articleNo={row['articleNo']}"
             df_for_list["매물 링크"] = df_for_list.apply(make_link, axis=1)
         
+            # 컬럼 순서 수정
             final_cols_list = [
                 "아파트명", "거래유형", "층수", "호가", "평형타입",
                 "공급면적(㎡)", "전용면적(㎡)", "방향", "동",
@@ -712,6 +1004,7 @@ def render_visualization(selected_complexes: List[str], df_filtered: pd.DataFram
                 "상세 설명", "중개사무소", "매물 링크"
             ]
             df_show_list = df_for_list[final_cols_list].copy()
+        
             styler = df_show_list.style.applymap(style_gap, subset=["실거래가 전고점 갭", "실거래가 전저점 갭"])
             st.dataframe(
                 styler,
