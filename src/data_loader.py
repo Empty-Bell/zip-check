@@ -1,7 +1,8 @@
 import pandas as pd
 import streamlit as st
+import os
 from typing import List, Optional, Dict, Tuple
-from src.config import DATA_PATHS
+from src.config import DATA_PATHS, BASE_DIR, DATA_DIR
 
 @st.cache_data
 def load_pyeong_data(complex_ids: Optional[List[str]] = None) -> Dict[str, List[str]]:
