@@ -24,10 +24,3 @@ UI_CONFIG = {
     "LAYOUT": "wide",
     "INITIAL_SIDEBAR_STATE": "expanded"
 }
-
-if __name__ == '__main__':
-    print("config.py 위치:", __file__)
-    print("BASE_DIR:", BASE_DIR)
-    print("DATA_DIR:", DATA_DIR)
-    for key, path in DATA_PATHS.items():
-        print(f"{key}: {path}")
