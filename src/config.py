@@ -2,7 +2,7 @@ import os
 from pathlib import Path
 
 # Base paths
-BASE_DIR = Path(__file__).resolve().parent  # config.py의 상위 폴더로 변경
+BASE_DIR = Path(__file__).resolve().parent.parent  # config.py의 상위 폴더로 변경
 DATA_DIR = BASE_DIR / "data"
 
 # Data paths
