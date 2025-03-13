@@ -24,3 +24,11 @@ UI_CONFIG = {
     "LAYOUT": "wide",
     "INITIAL_SIDEBAR_STATE": "expanded"
 }
+
+# UI Constants, DATA_PATHS 등 기존 설정이 끝난 후에 디버깅용 출력 코드 추가
+if __name__ == '__main__':
+    print("config.py 위치:", __file__)
+    print("BASE_DIR:", BASE_DIR)
+    print("DATA_DIR:", DATA_DIR)
+    for key, path in DATA_PATHS.items():
+        print(f"{key}: {path}")
