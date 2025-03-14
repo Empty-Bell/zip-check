@@ -178,18 +178,57 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
         if st.session_state.app_state.get("apt1_selected") and st.session_state.app_state.get("apt2_selected"):
             if st.button("분석 실행", type="primary"):
                 try:
-                    # Step 1: naver_apt_v5를 통한 데이터 수집 및 파일 생성 확인
-                    with st.spinner("Step 1: naver_apt_v5를 통한 데이터 수집 중..."):
-                        from src.naver_apt_v5 import main_function as run_01
-                        run_01(selected_complexes)
-                        st.success("Step 1 완료: 데이터 수집 완료")
+                    with st.expander("디버깅 정보", expanded=True):
+                        st.write("선택된 단지:", selected_complexes)
+                        
+                        # Step 1: naver_apt_v5를 통한 데이터 수집 및 파일 생성 확인
+                        with st.spinner("Step 1: 데이터 수집 중...💾"):
+                            from src.naver_apt_v5 import main_function as run_01
+                            run_01(selected_complexes)
+                            st.success("Step 1 완료: 데이터 수집 완료")
+                            
+                            st.write("----- 생성된 파일 확인 (naver_apt_v5 단계) -----")
+                            files_to_check = {
+                                "COMPLEX": DATA_PATHS["COMPLEX"],
+                                "PYEONG": DATA_PATHS["PYEONG"],
+                                "SELL": DATA_PATHS["SELL"],
+                                "REAL_PRICE": DATA_PATHS["REAL_PRICE"],
+                                "DONG": DATA_PATHS["DONG"],
+                                "PROVIDER": DATA_PATHS["PROVIDER"]
+                            }
+                            for key, path in files_to_check.items():
+                                st.write(f"파일 {key} 경로: {path}")
+                                if os.path.exists(path):
+                                    try:
+                                        df_temp = pd.read_csv(path, encoding='utf-8-sig')
+                                        st.success(f"{key} 파일 생성 완료 ({len(df_temp)} 행)")
+                                    except Exception as e:
+                                        st.error(f"{key} 파일 읽기 오류: {e}")
+                                else:
+                                    st.error(f"{key} 파일이 존재하지 않습니다.")
+                        
+                        # Step 2: sell_price_merge_v2를 통한 데이터 병합 및 result.csv 생성 확인
+                        with st.spinner("Step 2: 데이터 처리 중...⚙"):
+                            from src.sell_price_merge_v2 import main as run_03
+                            run_03(selected_complexes)
+                            st.success("Step 2 완료: 데이터 병합 완료")
+                            
+                            st.write("----- 생성된 결과 파일 확인 (sell_price_merge_v2 단계) -----")
+                            st.write("Result 파일 경로:", output_path)
+                            if os.path.exists(output_path):
+                                try:
+                                    df_result = pd.read_csv(output_path, encoding='utf-8-sig')
+                                    st.success(f"Result 파일 생성 완료 ({len(df_result)} 행)")
+                                    st.write("Result 파일에 포함된 컬럼:", df_result.columns.tolist())
+                                except Exception as e:
+                                    st.error(f"Result 파일 읽기 오류: {e}")
+                            else:
+                                st.error("Result 파일이 생성되지 않았습니다.")
+                                
+                        # 현재 작업 디렉토리와 data 폴더 내 파일 목록 표시
+                        st.write("현재 작업 디렉토리:", os.getcwd())
+                        st.write("data 폴더 내 파일 목록:", os.listdir("data") if os.path.exists("data") else "data 폴더 없음")
                     
-                    # Step 2: sell_price_merge_v2를 통한 데이터 병합 및 result.csv 생성 확인
-                    with st.spinner("Step 2: sell_price_merge_v2를 통한 데이터 병합 중..."):
-                        from src.sell_price_merge_v2 import main as run_03
-                        run_03(selected_complexes)
-                        st.success("Step 2 완료: 데이터 병합 완료")
-                                            
                     st.session_state.app_state["analysis_done"] = True
                     st.session_state.app_state["last_analysis_time"] = datetime.now()
                     st.success("분석이 완료되었습니다!")
@@ -205,7 +244,13 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
                 st.stop()
                 
             df_filtered = pd.read_csv(output_path, encoding='utf-8-sig')
-                            
+            st.write("데이터 로드 완료 - 행 수:", len(df_filtered))
+            
+            if "complexNo" not in df_filtered.columns:
+                st.error("complexNo 컬럼이 없습니다")
+                st.write("사용 가능한 컬럼:", df_filtered.columns.tolist())
+                st.stop()
+                
             df_filtered["complexNo"] = df_filtered["complexNo"].astype(str)
             df_filtered = df_filtered[df_filtered["complexNo"].isin(selected_complexes)]
             
@@ -215,6 +260,7 @@ def render_sidebar(region_df: pd.DataFrame) -> Tuple[List[str], pd.DataFrame]:
                 
         except Exception as e:
             st.error(f"데이터 로드 중 오류 발생: {e}")
+            st.write("스택 트레이스:", e.__traceback__)
 
     return selected_complexes, df_filtered
 
