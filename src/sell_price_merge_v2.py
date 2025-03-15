@@ -21,11 +21,9 @@ def main(complex_ids=None):
         # ========================
         st.write("Loading sell_data.csv...")
         df_sell = pd.read_csv(sell_data_path, encoding='utf-8')
-        st.write(f"sell_data.csv shape: {df_sell.shape}")
         
         st.write("Loading price_data.csv...")
         df_real = pd.read_csv(real_price_path, encoding='utf-8')
-        st.write(f"price_data.csv shape: {df_real.shape}")
         
         # 선택된 단지만 필터링
         if complex_ids:
@@ -33,8 +31,6 @@ def main(complex_ids=None):
             df_real['complexNo'] = df_real['complexNo'].astype(str)
             df_sell = df_sell[df_sell['complexNo'].isin(complex_ids)]
             df_real = df_real[df_real['complexNo'].isin(complex_ids)]
-            st.write(f"Filtered df_sell shape: {df_sell.shape}")
-            st.write(f"Filtered df_real shape: {df_real.shape}")
             if df_sell.empty or df_real.empty:
                 st.write("선택된 단지의 데이터가 없습니다.")
                 return
@@ -49,11 +45,9 @@ def main(complex_ids=None):
             return str(pyeong) if pd.notnull(pyeong) else np.nan
 
         df_sell['pyeongName3'] = df_sell['pyeongName'].apply(extract_pyeong)
-        st.write("df_sell['pyeongName3'] sample:", df_sell['pyeongName3'].head())
         
         # df_real의 pyeongName3을 문자열로 강제 변환
         df_real['pyeongName3'] = df_real['pyeongName3'].astype(str)
-        st.write("df_real['pyeongName3'] unique values:", df_real['pyeongName3'].unique())
         
         def extract_building_number(bname):
             if isinstance(bname, str):
@@ -66,7 +60,6 @@ def main(complex_ids=None):
             return bname
 
         df_sell['buildingName2'] = df_sell['buildingName'].apply(extract_building_number)
-        st.write("df_sell['buildingName2'] sample:", df_sell['buildingName2'].head())
         
         # 문자열 컬럼 공백 제거
         df_sell['pyeongName'] = df_sell['pyeongName'].astype(str).str.strip()
@@ -93,7 +86,6 @@ def main(complex_ids=None):
                 return np.nan
 
         df_sell['dealOrWarrantPrc2'] = df_sell['dealOrWarrantPrc'].apply(convert_deal_price)
-        st.write("df_sell['dealOrWarrantPrc2'] sample:", df_sell['dealOrWarrantPrc2'].head())
 
         # ========================
         # 3. 미리 계산할 열 생성 (실거래 데이터)
@@ -103,8 +95,6 @@ def main(complex_ids=None):
             errors='coerce'
         )
         df_real['dealDateClass_numeric'] = pd.to_numeric(df_real['dealDateClass'], errors='coerce')
-        st.write("df_real dealAmount_numeric stats:", df_real['dealAmount_numeric'].describe())
-        st.write("df_real dealDateClass_numeric unique:", df_real['dealDateClass_numeric'].unique())
 
         # ========================
         # 4. 통계 계산에 사용할 allowed 리스트 설정
@@ -172,8 +162,6 @@ def main(complex_ids=None):
             stats_pyeong_5, stats_pyeong_3, stats_pyeong_1,
             stats_pyeongtype_5, stats_pyeongtype_3, stats_pyeongtype_1
         ], axis=1)
-        st.write("After statistics merge, df_sell shape:", df_sell.shape)
-        st.write("Statistics sample (pyeong_max_5):", df_sell[[col for col in df_sell.columns if "pyeong_max_5" in col]].head())
 
         # ========================
         # 7. complex_data.csv 병합
@@ -192,7 +180,6 @@ def main(complex_ids=None):
         ]
         df_sell = pd.merge(df_sell, df_complex[['complexNo'] + columns_to_map],
                           on='complexNo', how='left')
-        st.write("After merging complex_data, df_sell shape:", df_sell.shape)
 
         # ========================
         # 8. 최신 거래 데이터 매핑
@@ -200,13 +187,10 @@ def main(complex_ids=None):
         st.write("Mapping latest deal data...")
         df_real['dealDate_dt'] = pd.to_datetime(df_real['dealDate'], errors='coerce')
         latest_idx = df_real.groupby(['complexNo', 'pyeongName3'])['dealDate_dt'].idxmax()
-        st.write("Latest indices sample:", latest_idx.head())
         df_latest = df_real.loc[latest_idx, ['complexNo', 'pyeongName3', 'dealDate', 'dealAmount', 'floor']].rename(
             columns={'dealDate': 'latestdealDate', 'dealAmount': 'latestdealAmount', 'floor': 'latestdealFloor'}
         )
-        st.write("df_latest shape:", df_latest.shape)
         df_sell = pd.merge(df_sell, df_latest, on=['complexNo', 'pyeongName3'], how='left')
-        st.write(f"After merging latest deal data, df_sell shape: {df_sell.shape}")
 
         # ========================
         # 9. 매물 중위값 계산 및 bubble_score, gap 계산
@@ -216,7 +200,6 @@ def main(complex_ids=None):
             'dealAmount_numeric': 'median'
         }).reset_index()
         real_stats.columns = ['complexNo', 'pyeongName3', 'real_price_median']
-        st.write("Real statistics sample:", real_stats.head())
 
         df_sell = pd.merge(
             df_sell,
@@ -224,14 +207,12 @@ def main(complex_ids=None):
             on=['complexNo', 'pyeongName3'],
             how='left'
         )
-        st.write("After merging real_stats, df_sell shape:", df_sell.shape)
 
         st.write("Computing bubble scores...")
         mask = df_sell['tradeTypeName'] == '매매'
         df_sell['bubble_score'] = np.nan
 
         mask_case1 = mask & (df_sell['dealOrWarrantPrc2'] <= df_sell['real_price_median'])
-        st.write("Case1 count:", mask_case1.sum())
         case1_scores = (
             (df_sell.loc[mask_case1, 'dealOrWarrantPrc2'] - df_sell.loc[mask_case1, 'pyeong_min_5']) /
             (df_sell.loc[mask_case1, 'real_price_median'] - df_sell.loc[mask_case1, 'pyeong_min_5'])
@@ -239,13 +220,11 @@ def main(complex_ids=None):
         df_sell.loc[mask_case1, 'bubble_score'] = np.maximum(case1_scores, 0)
 
         mask_case2 = mask & (df_sell['dealOrWarrantPrc2'] > df_sell['real_price_median'])
-        st.write("Case2 count:", mask_case2.sum())
         case2_scores = 50 + (
             (df_sell.loc[mask_case2, 'dealOrWarrantPrc2'] - df_sell.loc[mask_case2, 'real_price_median']) /
             (df_sell.loc[mask_case2, 'pyeong_max_5'] - df_sell.loc[mask_case2, 'real_price_median'])
         ) * 50
         df_sell.loc[mask_case2, 'bubble_score'] = np.maximum(case2_scores, 0)
-        st.write("Bubble score sample:", df_sell['bubble_score'].head())
 
         st.write("Computing gaps...")
 
@@ -266,13 +245,10 @@ def main(complex_ids=None):
             ((df_sell.loc[mask, 'dealOrWarrantPrc2'] / df_sell.loc[mask, 'dealPriceMin2']) - 1) * 100
         ).apply(lambda x: f"{round(x, 1)}%" if pd.notnull(x) else "")
 
-        st.write("Gap sample:", df_sell[['real_max_5_gap', 'real_min_5_gap', 'kb_upper_gap', 'deal_min_gap']].head())
-
         # ========================
         # 10. 결과 저장
         # ========================
         st.write(f"Saving to {output_path}...")
-        st.write("Final df_sell shape:", df_sell.shape)
         df_sell.to_csv(output_path, index=False, encoding='utf-8-sig')
         st.write("저장 완료")
 
