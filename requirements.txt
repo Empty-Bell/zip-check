@@ -1,10 +1,7 @@
-streamlit==1.31.1
-pandas==2.1.4
-numpy==1.26.3
-plotly==5.18.0
+# 배치 수집기(collector) 실행에 필요한 패키지.
+# 프론트엔드(docs/)는 정적 파일이라 별도 의존성이 없습니다(Plotly는 CDN).
+pandas==2.2.3
+numpy==1.26.4
 requests==2.31.0
-python-dateutil==2.8.2
-python-dotenv==1.0.0
-Pillow==10.4.0
-protobuf==4.25.6
-pyarrow==19.0.1
+python-dotenv==1.0.1
+PyYAML==6.0.2

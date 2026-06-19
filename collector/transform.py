@@ -1,8 +1,7 @@
 import pandas as pd
 import numpy as np
 import re
-import streamlit as st
-from src.config import DATA_PATHS
+from collector.paths import DATA_PATHS
 
 # 파일 경로 설정
 sell_data_path = DATA_PATHS["SELL"]
@@ -241,7 +240,7 @@ def main(complex_ids=None):
 
     except Exception as e:
         # 오류를 호출부로 전파하여 분석이 잘못 완료 처리되지 않도록 함
-        st.error(f"데이터 병합(sell_price_merge) 중 오류: {e}")
+        print(f"[transform] 데이터 병합 중 오류: {e}")
         raise
 
 if __name__ == "__main__":

@@ -6,7 +6,7 @@ import csv
 import copy
 import math
 import re
-from src.config import DATA_PATHS, DATA_DIR
+from collector.paths import DATA_PATHS, DATA_DIR
 
 # .env 파일 로드
 load_dotenv()
@@ -127,8 +127,21 @@ def fetch_json(url, params, cookies, headers):
         print(f"URL 요청 중 예외 발생: {url}, 예외: {e}")
     return None
 
+def fetch_complex_list(cortarNo):
+    """지역(동) 코드로 해당 동의 아파트 단지 목록을 조회합니다."""
+    url = "https://new.land.naver.com/api/regions/complexes"
+    params = {
+        'cortarNo': str(cortarNo),
+        'realEstateType': 'APT:PRE:JGC:ABYG',
+        'order': '',
+    }
+    data = fetch_json(url, params=params, cookies=BASE_COOKIES, headers=BASE_HEADERS)
+    if not data:
+        return []
+    return data.get("complexList", [])
+
 def write_csv(filename, header, rows):
-    from src.config import DATA_PATHS, DATA_DIR
+    from collector.paths import DATA_PATHS, DATA_DIR
     
     # 수정: filename을 문자열로 변환 후 replace()
     file_key = str(filename).replace('.csv', '').upper()
