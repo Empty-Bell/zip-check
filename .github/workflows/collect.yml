@@ -18,37 +18,12 @@ jobs:
   collect:
     runs-on: ubuntu-latest
     env:
-      # --- 네이버 비공개 API 인증값 (저장소 Secrets에 등록) ---
+      # --- 네이버 비공개 API 인증값 (저장소 Secrets에 등록, 5개) ---
+      AUTHORIZATION: ${{ secrets.AUTHORIZATION }}
       NNB: ${{ secrets.NNB }}
       ASID: ${{ secrets.ASID }}
       NAC: ${{ secrets.NAC }}
-      AUTHORIZATION: ${{ secrets.AUTHORIZATION }}
       USER_AGENT: ${{ secrets.USER_AGENT }}
-      SELL_AUTHORIZATION: ${{ secrets.SELL_AUTHORIZATION }}
-      SELL_REALESTATE: ${{ secrets.SELL_REALESTATE }}
-      SELL_FWB: ${{ secrets.SELL_FWB }}
-      SELL_SHOW_FIN_BADGE: ${{ secrets.SELL_SHOW_FIN_BADGE }}
-      SELL_GA: ${{ secrets.SELL_GA }}
-      SELL_GA_0ZGH3YC3W6: ${{ secrets.SELL_GA_0ZGH3YC3W6 }}
-      SELL_REFERER: ${{ secrets.SELL_REFERER }}
-      SCHOOL_AUTHORIZATION: ${{ secrets.SCHOOL_AUTHORIZATION }}
-      SCHOOL_PAGE_UID: ${{ secrets.SCHOOL_PAGE_UID }}
-      SCHOOL_REALESTATE: ${{ secrets.SCHOOL_REALESTATE }}
-      SCHOOL_SRT30: ${{ secrets.SCHOOL_SRT30 }}
-      SCHOOL_SRT5: ${{ secrets.SCHOOL_SRT5 }}
-      SCHOOL_BUC: ${{ secrets.SCHOOL_BUC }}
-      DONG_AUTHORIZATION: ${{ secrets.DONG_AUTHORIZATION }}
-      DONG_PAGE_UID: ${{ secrets.DONG_PAGE_UID }}
-      DONG_REALESTATE: ${{ secrets.DONG_REALESTATE }}
-      DONG_SRT30: ${{ secrets.DONG_SRT30 }}
-      DONG_SRT5: ${{ secrets.DONG_SRT5 }}
-      DONG_BUC: ${{ secrets.DONG_BUC }}
-      BUILDING_AUTHORIZATION: ${{ secrets.BUILDING_AUTHORIZATION }}
-      BUILDING_PAGE_UID: ${{ secrets.BUILDING_PAGE_UID }}
-      BUILDING_REALESTATE: ${{ secrets.BUILDING_REALESTATE }}
-      BUILDING_SRT30: ${{ secrets.BUILDING_SRT30 }}
-      BUILDING_SRT5: ${{ secrets.BUILDING_SRT5 }}
-      BUILDING_BUC: ${{ secrets.BUILDING_BUC }}
     steps:
       - uses: actions/checkout@v4
 

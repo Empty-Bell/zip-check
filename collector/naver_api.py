@@ -17,17 +17,21 @@ load_dotenv()
 updated_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
 # -------------------------------
-# 기본 설정 (쿠키, 헤더 등)
+# 인증 설정 (단일 토큰 세트)
 # -------------------------------
-BASE_COOKIES = {
+# 네이버 부동산 read API는 모든 엔드포인트가 동일한 인증을 사용합니다.
+# 따라서 아래 5개 값만 있으면 매물/실거래/학교/동 정보를 모두 수집할 수 있습니다.
+#   - AUTHORIZATION : Bearer 토큰 (핵심 인증값)
+#   - NNB, ASID, NAC: 세션 쿠키
+#   - USER_AGENT    : 브라우저 식별 문자열
+COOKIES = {
     'NNB': os.getenv('NNB'),
     'ASID': os.getenv('ASID'),
     'NAC': os.getenv('NAC'),
     'landHomeFlashUseYn': 'Y',
-    '_ga': 'GA1.1.737295237.1698157835',
 }
 
-BASE_HEADERS = {
+HEADERS = {
     'accept': '*/*',
     'accept-language': 'ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7',
     'authorization': os.getenv('AUTHORIZATION'),
@@ -37,72 +41,9 @@ BASE_HEADERS = {
     'sec-ch-ua-platform': '"Windows"',
 }
 
-# -------------------------------
-# Sell 데이터 요청용 설정
-# -------------------------------
-SELL_COOKIES = {
-    'NNB': os.getenv('NNB'),
-    'ASID': os.getenv('ASID'),
-    'NAC': os.getenv('NAC'),
-    'landHomeFlashUseYn': 'Y',
-    'REALESTATE': os.getenv('SELL_REALESTATE'),
-    '_fwb': os.getenv('SELL_FWB'),
-    'SHOW_FIN_BADGE': os.getenv('SELL_SHOW_FIN_BADGE'),
-    '_ga_0ZGH3YC3W6': os.getenv('SELL_GA_0ZGH3YC3W6'),
-    '_ga': os.getenv('SELL_GA'),
-}
-
-SELL_HEADERS = {
-    'accept': '*/*',
-    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
-    'authorization': os.getenv('SELL_AUTHORIZATION'),
-    'user-agent': os.getenv('USER_AGENT'),
-    'referer': os.getenv('SELL_REFERER'),
-}
-
-# -------------------------------
-# 학교 정보 요청용 설정
-# -------------------------------
-SCHOOL_COOKIES = {
-    'NNB': os.getenv('NNB'),
-    'ASID': os.getenv('ASID'),
-    'NAC': os.getenv('NAC'),
-    'landHomeFlashUseYn': 'Y',
-    'page_uid': os.getenv('SCHOOL_PAGE_UID'),
-    'REALESTATE': os.getenv('SCHOOL_REALESTATE'),
-    'SRT30': os.getenv('SCHOOL_SRT30'),
-    'SRT5': os.getenv('SCHOOL_SRT5'),
-    'BUC': os.getenv('SCHOOL_BUC'),
-}
-
-SCHOOL_HEADERS = {
-    'accept': '*/*',
-    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
-    'authorization': os.getenv('SCHOOL_AUTHORIZATION'),
-    'user-agent': os.getenv('USER_AGENT'),
-}
-
-# -------------------------------
-# 동 정보 요청용 설정
-# -------------------------------
-DONG_COOKIES = {
-    'NNB': os.getenv('NNB'),
-    'ASID': os.getenv('ASID'),
-    'NAC': os.getenv('NAC'),
-    'landHomeFlashUseYn': 'Y',
-    'page_uid': os.getenv('DONG_PAGE_UID'),
-    'REALESTATE': os.getenv('DONG_REALESTATE'),
-    'SRT30': os.getenv('DONG_SRT30'),
-    'SRT5': os.getenv('DONG_SRT5'),
-    'BUC': os.getenv('DONG_BUC'),
-}
-
-DONG_HEADERS = {
-    'accept': '*/*',
-    'accept-language': 'en-GB,en;q=0.9,ko-KR;q=0.8',
-    'authorization': os.getenv('DONG_AUTHORIZATION'),
-    'user-agent': os.getenv('USER_AGENT'),
-}
+# 기존 호출부 호환을 위한 별칭 (모두 동일한 인증 세트를 가리킴)
+BASE_COOKIES = SELL_COOKIES = SCHOOL_COOKIES = DONG_COOKIES = COOKIES
+BASE_HEADERS = SELL_HEADERS = SCHOOL_HEADERS = DONG_HEADERS = HEADERS
 
 COMMON_PARAMS = {
     'tradeType': 'A1',

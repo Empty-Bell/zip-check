@@ -29,8 +29,9 @@ docs/        GitHub Pages 정적 사이트 (HTML/JS + Plotly.js)
 
 ### 1) 토큰 등록 (최초 1회 + 만료 시 갱신)
 네이버 비공개 API는 브라우저 세션 토큰을 사용하며 **주기적으로 만료**됩니다.
-`.env.example`의 항목들을 브라우저 개발자도구에서 추출해
-저장소 **Settings → Secrets and variables → Actions** 에 등록하세요.
+`.env.example`의 **5개 값**(`AUTHORIZATION`, `NNB`, `ASID`, `NAC`, `USER_AGENT`)을
+브라우저 개발자도구(F12 → Network)에서 추출해
+저장소 **Settings → Secrets and variables → Actions** 에 같은 이름으로 등록하세요.
 
 ### 2) 수집 대상 동 추가/변경
 `collector/config.yaml`의 `regions`에 동(cortarNo)을 추가합니다.
