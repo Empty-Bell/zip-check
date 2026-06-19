@@ -35,6 +35,7 @@ var/
 # Environment variables
 .env
 .env.*
+!.env.example
 
 # 로그 파일
 *.log

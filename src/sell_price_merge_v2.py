@@ -19,12 +19,9 @@ def main(complex_ids=None):
         # ========================
         # 2. 데이터 로드
         # ========================
-        st.write("Loading sell_data.csv...")
         df_sell = pd.read_csv(sell_data_path, encoding='utf-8')
-        
-        st.write("Loading price_data.csv...")
         df_real = pd.read_csv(real_price_path, encoding='utf-8')
-        
+
         # 선택된 단지만 필터링
         if complex_ids:
             df_sell['complexNo'] = df_sell['complexNo'].astype(str)
@@ -32,8 +29,7 @@ def main(complex_ids=None):
             df_sell = df_sell[df_sell['complexNo'].isin(complex_ids)]
             df_real = df_real[df_real['complexNo'].isin(complex_ids)]
             if df_sell.empty or df_real.empty:
-                st.write("선택된 단지의 데이터가 없습니다.")
-                return
+                raise ValueError("선택된 단지에 대한 매물/실거래 데이터가 없습니다.")
 
         # ------------------------
         # 2-1. 문자열 전처리 및 파생변수 생성
@@ -148,7 +144,6 @@ def main(complex_ids=None):
                 f'pyeongtype_min_{label}': filtered['dealAmount_numeric'].min()
             })
 
-        st.write("Calculating statistics for df_sell...")
         stats_pyeong_5 = df_sell.apply(lambda row: compute_stats_pyeong(row, allowed_5, 5), axis=1)
         stats_pyeong_3 = df_sell.apply(lambda row: compute_stats_pyeong(row, allowed_3, 3), axis=1)
         stats_pyeong_1 = df_sell.apply(lambda row: compute_stats_pyeong(row, allowed_1, 1), axis=1)
@@ -166,7 +161,6 @@ def main(complex_ids=None):
         # ========================
         # 7. complex_data.csv 병합
         # ========================
-        st.write("Merging with complex_data.csv...")
         df_complex = pd.read_csv(complex_data_path, encoding='utf-8')
         df_complex['complexNo'] = df_complex['complexNo'].astype(str)
         columns_to_map = [
@@ -184,7 +178,6 @@ def main(complex_ids=None):
         # ========================
         # 8. 최신 거래 데이터 매핑
         # ========================
-        st.write("Mapping latest deal data...")
         df_real['dealDate_dt'] = pd.to_datetime(df_real['dealDate'], errors='coerce')
         latest_idx = df_real.groupby(['complexNo', 'pyeongName3'])['dealDate_dt'].idxmax()
         df_latest = df_real.loc[latest_idx, ['complexNo', 'pyeongName3', 'dealDate', 'dealAmount', 'floor']].rename(
@@ -195,7 +188,6 @@ def main(complex_ids=None):
         # ========================
         # 9. 매물 중위값 계산 및 bubble_score, gap 계산
         # ========================
-        st.write("Calculating selling price statistics...")
         real_stats = df_real.groupby(['complexNo', 'pyeongName3']).agg({
             'dealAmount_numeric': 'median'
         }).reset_index()
@@ -208,7 +200,6 @@ def main(complex_ids=None):
             how='left'
         )
 
-        st.write("Computing bubble scores...")
         mask = df_sell['tradeTypeName'] == '매매'
         df_sell['bubble_score'] = np.nan
 
@@ -225,8 +216,6 @@ def main(complex_ids=None):
             (df_sell.loc[mask_case2, 'pyeong_max_5'] - df_sell.loc[mask_case2, 'real_price_median'])
         ) * 50
         df_sell.loc[mask_case2, 'bubble_score'] = np.maximum(case2_scores, 0)
-
-        st.write("Computing gaps...")
 
         # 각 gap 값을 개별적으로 처리 (NaN 체크 포함)
         df_sell.loc[mask, 'real_max_5_gap'] = (
@@ -248,12 +237,12 @@ def main(complex_ids=None):
         # ========================
         # 10. 결과 저장
         # ========================
-        st.write(f"Saving to {output_path}...")
         df_sell.to_csv(output_path, index=False, encoding='utf-8-sig')
-        st.write("저장 완료")
 
     except Exception as e:
-        st.write(f"sell_price_merge.py 실행 중 오류: {e}")
+        # 오류를 호출부로 전파하여 분석이 잘못 완료 처리되지 않도록 함
+        st.error(f"데이터 병합(sell_price_merge) 중 오류: {e}")
+        raise
 
 if __name__ == "__main__":
     main(complex_ids=['138183', '136913'])

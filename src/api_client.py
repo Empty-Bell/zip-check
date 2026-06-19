@@ -38,10 +38,11 @@ def fetch_complex_list(cortarNo: str) -> list:
     
     try:
         response = requests.get(
-            url, 
-            params=params, 
+            url,
+            params=params,
             cookies=get_cookies(),
-            headers=get_headers()
+            headers=get_headers(),
+            timeout=10
         )
         
         if response.status_code == 200:

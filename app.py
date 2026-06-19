@@ -28,16 +28,7 @@ st.set_page_config(
 )
 
 # 이후 모듈 임포트
-from src.config import UI_CONFIG
-from src.data_loader import (
-    load_region_mapping,
-    load_analysis_data,
-    get_dropdown_options,
-    get_sigungu_options,
-    get_dong_options,
-    load_pyeong_data
-)
-from src.api_client import fetch_complex_list
+from src.data_loader import load_region_mapping
 from src.ui_components_v2 import render_sidebar, render_visualization
 from src.styles import STREAMLIT_STYLE
 

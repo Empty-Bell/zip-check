@@ -114,7 +114,7 @@ COMMON_PARAMS = {
 def fetch_json(url, params, cookies, headers):
     """URL에 GET 요청 후 JSON 데이터를 반환합니다."""
     try:
-        resp = requests.get(url, params=params, cookies=cookies, headers=headers)
+        resp = requests.get(url, params=params, cookies=cookies, headers=headers, timeout=10)
         if resp.status_code == 200:
             try:
                 return resp.json()
